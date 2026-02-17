@@ -166,17 +166,17 @@ require_once '../includes/header.php';
                             // Format date/time
                             $dateStr = formatDateTime($tx['transaction_date']);
                         ?>
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--bg-glass); border-radius: 12px;">
+                        <div class="tx-item">
                             <div style="display: flex; align-items: center; gap: 1rem;">
                                 <div style="width: 50px; height: 50px; background: <?php echo $iconBg; ?>; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                                     <i class="fas <?php echo $icon; ?>" style="color: white;"></i>
                                 </div>
                                 <div>
-                                    <h4 style="margin-bottom: 0.25rem;"><?php echo htmlspecialchars($tx['description']); ?></h4>
+                                    <h4 style="margin-bottom: 0.25rem;"><?php echo htmlspecialchars(preg_replace('/^Admin\s+/i', '', (string)$tx['description'])); ?></h4>
                                     <p style="font-size: 0.9rem; color: var(--text-secondary);"><?php echo $dateStr; ?></p>
                                 </div>
                             </div>
-                            <span style="color: <?php echo $amountColor; ?>; font-weight: 600; font-size: 1.2rem;">
+                            <span class="tx-amount" style="color: <?php echo $amountColor; ?>; font-weight: 600; font-size: 1.2rem;">
                                 <?php echo $sign . $amountFormatted; ?>
                             </span>
                         </div>

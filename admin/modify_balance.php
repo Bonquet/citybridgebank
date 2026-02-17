@@ -16,7 +16,7 @@ $action = Security::sanitizeInput($_POST['action'] ?? '');
 $amount = isset($_POST['amount']) ? (float)$_POST['amount'] : 0.0;
 $reason = trim(Security::sanitizeInput($_POST['reason'] ?? ''));
 
-if ($user_id <= 0 || !in_array($action, ['credit', 'debit', 'adjustment'], true) || $reason === '') {
+if ($user_id <= 0 || !in_array($action, ['credit', 'debit', 'adjustment'], true)) {
     redirectWithMessage('balance_management.php', 'Invalid input parameters.', 'danger');
 }
 if (($action === 'credit' || $action === 'debit') && $amount <= 0) {
@@ -64,7 +64,10 @@ try {
     $stmt->execute([$newBalance, $user_id]);
 
     $reference = Security::generateReferenceNumber();
-    $txnDesc = 'Admin ' . $action . ' balance update. Reason: ' . $reason;
+    $txnDesc = ucfirst($action) . ' balance update';
+    if ($reason !== '') {
+        $txnDesc .= '. Note: ' . $reason;
+    }
     $stmt = $db->prepare("INSERT INTO transactions (user_id, transaction_type, amount, description, reference_number, status, balance_after, authorization_pin_used, payment_pin_used, secure_pass_used, transaction_date) VALUES (?, ?, ?, ?, ?, 'completed', ?, 0, 0, 0, NOW())");
     $stmt->execute([$user_id, $transactionType, abs($delta), $txnDesc, $reference, $newBalance]);
     $transactionId = (int)$db->lastInsertId();
@@ -72,8 +75,12 @@ try {
     $db->commit();
 
     $adminId = $_SESSION['admin_id'] ?? null;
-    Security::logAudit('balance_change', "Admin performed {$action} ({$delta}) for user {$user_id}. Reason: {$reason}", $user_id, $adminId, $transactionId, null, 'success');
-    Security::logAdminAction($adminId, 'balance_change', ucfirst($action) . " amount {$delta} for user {$user_id}. Reason: {$reason}", $user_id);
+    $auditDetail = "Admin performed {$action} ({$delta}) for user {$user_id}";
+    if ($reason !== '') {
+        $auditDetail .= ". Reason: {$reason}";
+    }
+    Security::logAudit('balance_change', $auditDetail, $user_id, $adminId, $transactionId, null, 'success');
+    Security::logAdminAction($adminId, 'balance_change', $auditDetail, $user_id);
 
     redirectWithMessage('balance_management.php', 'Balance updated successfully.', 'success');
 } catch (Throwable $e) {

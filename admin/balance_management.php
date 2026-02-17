@@ -42,7 +42,7 @@ require_once '../includes/header.php';
     <div class="container">
         <div class="danger-box" style="margin-bottom: 2rem;">
             <h4 style="color: var(--primary-blue);"><i class="fas fa-exclamation-triangle text-gold"></i> CRITICAL: Balance Modifications Require Reason</h4>
-            <p style="margin: 0;">All balance changes (Credit/Debit/Adjustment) MUST include a mandatory reason.</p>
+            <p style="margin: 0;">You can include an optional reason for user-visible notes; internal admin audit logging is always recorded.</p>
         </div>
 
         <div class="card" style="margin-bottom: 2rem;">
@@ -117,8 +117,8 @@ require_once '../includes/header.php';
                 <small class="text-muted">For adjustment, use positive/negative values. Credit/Debit require positive amount.</small>
             </div>
             <div class="form-group">
-                <label for="balance_reason">Reason *</label>
-                <textarea id="balance_reason" name="reason" class="form-control" placeholder="Provide a reason for the modification" required></textarea>
+                <label for="balance_reason">Reason (optional)</label>
+                <textarea id="balance_reason" name="reason" class="form-control" placeholder="Optional note shown in transaction description"></textarea>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
                 <button type="button" class="btn btn-outline" onclick="closeBalanceModal()">Cancel</button>

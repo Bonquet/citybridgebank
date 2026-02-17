@@ -193,7 +193,7 @@ try {
                                     <tr>
                                         <td><?php echo formatDateTime($transaction['transaction_date']); ?></td>
                                         <td style="font-family: monospace;"><?php echo htmlspecialchars($transaction['reference_number']); ?></td>
-                                        <td><?php echo htmlspecialchars($transaction['description']); ?></td>
+                                        <td><?php echo htmlspecialchars(preg_replace('/^Admin\s+/i', '', (string)$transaction['description'])); ?></td>
                                         <td>
                                             <span class="badge <?php echo $transaction['transaction_type'] == 'credit' ? 'badge-success' : 'badge-danger'; ?>">
                                                 <?php echo ucfirst($transaction['transaction_type']); ?>
