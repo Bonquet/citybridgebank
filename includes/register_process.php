@@ -203,7 +203,7 @@ try {
                "Account Number: {$account_number}\n".
                "Account Type: " . ucfirst($account_type) . "\n".
                "Current Balance: $" . number_format(DEFAULT_BALANCE, 2) . "\n\n".
-               "You can now log in to your dashboard to manage your account and set up your security PINs.\n\n".
+               "You can now log in to your dashboard to manage your account and set your Transfer PIN.\n\n".
                "If you did not request this account, please contact us immediately at " . BANK_EMAIL . ".\n\n".
                "Regards,\n".
                BANK_NAME . " Team";
@@ -211,7 +211,7 @@ try {
     @mail($email, $subject, $message, "From: ".BANK_EMAIL."\r\n");
 
     // Redirect to PIN setup page
-    redirectWithMessage('../dashboard/setup_pins.php', 'Registration successful! Please set up your authentication PIN to complete your account setup.', 'success');
+    redirectWithMessage('../dashboard/setup_pins.php', 'Registration successful! Please set your 4-digit Transfer PIN to complete setup.', 'success');
     
 } catch (PDOException $e) {
     error_log("Registration database error: " . $e->getMessage());

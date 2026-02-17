@@ -59,7 +59,7 @@ try {
     $stmt->execute([$_SESSION['user_id'], $type]);
     $row = $stmt->fetch();
     if (!$row) {
-        echo json_encode(['success' => false, 'message' => ucfirst($type) . ' PIN not configured.']);
+        echo json_encode(['success' => false, 'message' => ucfirst(str_replace('_',' ', $type)) . ' PIN is not configured. Please contact support.']);
         exit;
     }
     if ((int)$row['is_active'] !== 1) {

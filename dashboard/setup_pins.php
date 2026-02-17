@@ -5,7 +5,7 @@ if (!Security::isLoggedIn()) {
 }
 
 $db = Database::getInstance()->getConnection();
-$stmt = $db->prepare('SELECT pin_type, is_active, transfer_pin_hash FROM user_pins WHERE user_id = ?');
+$stmt = $db->prepare('SELECT pin_type, transfer_pin_hash FROM user_pins WHERE user_id = ?');
 $stmt->execute([$_SESSION['user_id']]);
 $rows = $stmt->fetchAll();
 $status = ['authorization' => false, 'payment' => false, 'secure_pass' => false];
@@ -18,36 +18,32 @@ foreach ($rows as $r) {
         $transferSet = true;
     }
 }
+
 $changeMode = isset($_GET['change']) && $_GET['change'] === '1';
 $csrf = Security::generateCSRFToken();
 require_once '../includes/header.php';
 ?>
-<section class="hero"><div class="container"><h1>PIN Settings</h1><p>Set transaction PINs and Transfer PIN securely.</p></div></section>
+<section class="hero"><div class="container"><h1>Transfer PIN Setup</h1><p>Your Transfer PIN is user-managed and required for transfer/withdraw verification.</p></div></section>
 <section style="padding:2rem 0;"><div class="container">
   <div class="card"><div class="card-body">
-    <h3>PIN Status</h3>
-    <p>Authorization PIN: <strong><?php echo $status['authorization'] ? 'Set' : 'Not set'; ?></strong></p>
-    <p>Payment PIN: <strong><?php echo $status['payment'] ? 'Set' : 'Not set'; ?></strong></p>
-    <p>Secure PIN: <strong><?php echo $status['secure_pass'] ? 'Set' : 'Not set'; ?></strong></p>
+    <h3>PIN Ownership Policy</h3>
     <p>Transfer PIN: <strong><?php echo $transferSet ? 'Set' : 'Not set'; ?></strong></p>
-    <p style="color:var(--text-secondary)">For Authentication/Payment/Secure PIN recovery, contact support.</p>
+    <p>Authentication PIN: <strong><?php echo $status['authorization'] ? 'Configured by Admin' : 'Managed by Admin'; ?></strong></p>
+    <p>Payment PIN: <strong><?php echo $status['payment'] ? 'Configured by Admin' : 'Managed by Admin'; ?></strong></p>
+    <p>Secure PIN: <strong><?php echo $status['secure_pass'] ? 'Configured by Admin' : 'Managed by Admin'; ?></strong></p>
+    <p style="color:var(--text-secondary)">Authentication/Payment/Secure PIN assistance is handled through Support Ticket only.</p>
   </div></div>
 
   <div class="card"><div class="card-body">
-    <h3><?php echo $changeMode ? 'Change Transfer PIN' : 'Set PINs'; ?></h3>
+    <h3><?php echo $changeMode ? 'Change Transfer PIN' : 'Set Your Transfer PIN'; ?></h3>
     <form method="POST" action="setup_pins_process.php">
       <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>">
       <input type="hidden" name="change_mode" value="<?php echo $changeMode ? '1' : '0'; ?>">
 
-      <?php if (!$changeMode): ?>
-      <div class="form-group"><label>Authorization PIN (4-6 digits)</label><input class="form-control" type="password" name="authorization_pin" pattern="\d{4,6}" required></div>
-      <div class="form-group"><label>Payment PIN (4-6 digits)</label><input class="form-control" type="password" name="payment_pin" pattern="\d{4,6}" required></div>
-      <div class="form-group"><label>Secure PIN (4-6 digits)</label><input class="form-control" type="password" name="secure_pass_pin" pattern="\d{4,6}" required></div>
-      <?php endif; ?>
-
       <div class="form-group"><label>Transfer PIN (4 digits)</label><input class="form-control" type="password" name="transfer_pin" pattern="\d{4}" required></div>
       <div class="form-group"><label>Confirm Transfer PIN</label><input class="form-control" type="password" name="transfer_pin_confirm" pattern="\d{4}" required></div>
-      <button class="btn btn-primary" type="submit"><?php echo $changeMode ? 'Update Transfer PIN' : 'Save PINs'; ?></button>
+      <button class="btn btn-primary" type="submit"><?php echo $changeMode ? 'Update Transfer PIN' : 'Save Transfer PIN'; ?></button>
+      <a href="support.php" class="btn btn-secondary" style="margin-left:.5rem;">Contact Support for Other PINs</a>
     </form>
   </div></div>
 </div></section>

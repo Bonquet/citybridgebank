@@ -53,9 +53,8 @@ CREATE TABLE user_pins (
     user_id INT NOT NULL,
     pin_type ENUM('authorization', 'payment', 'secure_pass') NOT NULL,
     pin_hash VARCHAR(255) NOT NULL,
-    -- Store the plain-text PIN so that admins can view or reset it easily.
-    -- In a real production system this would not be advisable; it's included here to satisfy
-    -- the requirement that admins be able to view and change user PINs.
+    -- Legacy column retained for compatibility.
+    -- Application policy keeps this NULL and uses reset/regenerate flows only.
     pin_plain VARCHAR(50) NULL,
     is_active BOOLEAN DEFAULT TRUE,
     pin_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

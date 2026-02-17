@@ -4,11 +4,15 @@ if (!Security::isLoggedIn()) {
     redirectWithMessage('../public/login.php', 'Please login to make transfers.', 'danger');
 }
 $db = Database::getInstance()->getConnection();
-$stmt = $db->prepare('SELECT account_balance, account_status FROM users WHERE user_id = ?');
+$stmt = $db->prepare('SELECT account_balance, account_status, kyc_status FROM users WHERE user_id = ?');
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch();
 if (!$user || $user['account_status'] !== 'active') {
     redirectWithMessage('index.php', 'Your account is not active.', 'danger');
+}
+
+if (($user['kyc_status'] ?? 'none') !== 'verified') {
+    redirectWithMessage('security.php', 'KYC verification is required before this transaction type. Please complete KYC in Security settings.', 'info');
 }
 $csrf = Security::generateCSRFToken();
 require_once '../includes/header.php';
@@ -72,6 +76,9 @@ async function verifyCurrentStage(){
     const el = document.getElementById('pinError');
     el.textContent = data.message || 'Invalid PIN';
     el.style.display = 'block';
+    if(data.requires_setup){
+      window.location.href = 'setup_pins.php';
+    }
     return;
   }
   storedPins[s.type] = pin;

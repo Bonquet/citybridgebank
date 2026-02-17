@@ -25,16 +25,17 @@ $securityLogs = $logStmt->fetchAll();
 $csrf = Security::generateCSRFToken();
 require_once '../includes/header.php';
 ?>
-<section class="hero"><div class="container"><h1>Security Settings</h1><p>Manage PINs and KYC verification.</p></div></section>
+<section class="hero"><div class="container"><h1>Security Settings</h1><p>Manage your Transfer PIN and KYC verification.</p></div></section>
 <section style="padding:2rem 0;"><div class="container">
 
 <div class="card" style="margin-bottom:1rem;"><div class="card-body">
   <h2>PIN Controls</h2>
   <p>Transfer PIN: <strong><?php echo $status['transfer'] ? 'Set' : 'Not Set'; ?></strong> <a class="btn btn-outline btn-sm" href="setup_pins.php?change=1">Change Transfer PIN</a></p>
-  <p>Authorization PIN: <strong><?php echo $status['authorization'] ? 'Set' : 'Not Set'; ?></strong></p>
-  <p>Payment PIN: <strong><?php echo $status['payment'] ? 'Set' : 'Not Set'; ?></strong> <a class="btn btn-outline btn-sm" href="change_pin.php?type=payment">Change Payment PIN</a></p>
-  <p>Secure PIN: <strong><?php echo $status['secure_pass'] ? 'Set' : 'Not Set'; ?></strong> <a class="btn btn-outline btn-sm" href="change_pin.php?type=secure">Change Secure PIN</a></p>
-  <p style="color:var(--text-secondary)">For Authentication/Payment/Secure PIN recovery, contact support.</p>
+  <p>Authentication PIN: <strong><?php echo $status['authorization'] ? 'Configured by Admin' : 'Not configured'; ?></strong></p>
+  <p>Payment PIN: <strong><?php echo $status['payment'] ? 'Configured by Admin' : 'Not configured'; ?></strong></p>
+  <p>Secure PIN: <strong><?php echo $status['secure_pass'] ? 'Configured by Admin' : 'Not configured'; ?></strong></p>
+  <p style="color:var(--text-secondary)">Users cannot view or change Authentication/Payment/Secure PINs. Open a support ticket for assistance.</p>
+  <a class="btn btn-secondary btn-sm" href="support.php">Open Support Ticket</a>
 </div></div>
 
 <div class="card" style="margin-bottom:1rem;"><div class="card-body">

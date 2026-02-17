@@ -16,13 +16,17 @@ $securePin = trim($_POST['secure_pass_pin'] ?? '');
 if (strlen($recipientAccount) < 6 || $recipientBank === '' || $amount < MIN_TRANSFER_AMOUNT || strlen($description) < 5) {
     redirectWithMessage('withdraw.php', 'Please review withdrawal details.', 'danger');
 }
+if (!preg_match('/^\d{4}$/', $transferPin) || !preg_match('/^\d{4,6}$/', $authPin) || !preg_match('/^\d{4,6}$/', $paymentPin) || !preg_match('/^\d{4,6}$/', $securePin)) {
+    redirectWithMessage('withdraw.php', 'PIN verification failed. Please try again.', 'danger');
+}
 
 try {
     $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare('SELECT account_balance, account_status FROM users WHERE user_id = ?');
+    $stmt = $db->prepare('SELECT account_balance, account_status, kyc_status FROM users WHERE user_id = ?');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
     if (!$user || $user['account_status'] !== 'active') { redirectWithMessage('index.php', 'Your account is not active.', 'danger'); }
+    if (($user['kyc_status'] ?? 'none') !== 'verified') { redirectWithMessage('security.php', 'KYC verification is required before this transaction type.', 'info'); }
 
     $pinStmt = $db->prepare('SELECT pin_type, pin_hash, is_active, transfer_pin_hash FROM user_pins WHERE user_id = ?');
     $pinStmt->execute([$_SESSION['user_id']]);

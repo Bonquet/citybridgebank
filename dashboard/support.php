@@ -27,7 +27,7 @@ $tickets = $stmt->fetchAll();
 $csrf = Security::generateCSRFToken();
 require_once '../includes/header.php';
 ?>
-<section class="hero"><div class="container"><h1>Support Center</h1><p>Contact support and track replies.</p></div></section>
+<section class="hero"><div class="container"><h1>Support Center</h1><p>Contact support and track replies. For Authentication/Payment/Secure PIN help, open a ticket here.</p></div></section>
 <section style="padding:2rem 0;"><div class="container">
 <div class="card" style="margin-bottom:1rem;"><div class="card-body">
   <h2>Submit Ticket</h2>
@@ -35,7 +35,7 @@ require_once '../includes/header.php';
     <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>">
     <div class="form-group"><label>Subject</label><input class="form-control" name="subject" required></div>
     <div class="form-group"><label>Priority</label><select class="form-control" name="priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
-    <div class="form-group"><label>Message</label><textarea class="form-control" name="message" required></textarea></div>
+    <div class="form-group"><label>Message</label><textarea class="form-control" name="message" required placeholder="Describe your issue. Example: Please assist with Authentication PIN reset."></textarea></div>
     <button class="btn btn-primary" type="submit">Create Ticket</button>
   </form>
 </div></div>

@@ -68,10 +68,10 @@ try {
         redirectWithMessage('../public/login.php', 'Your account has been frozen. Please contact customer support.', 'danger');
     }
     
-    // Check if PINs are set
-    $stmt = $db->prepare("SELECT COUNT(*) as pin_count FROM user_pins WHERE user_id = ?");
+    // Check Transfer PIN setup status (user-owned PIN).
+    $stmt = $db->prepare("SELECT 1 FROM user_pins WHERE user_id = ? AND transfer_pin_hash IS NOT NULL LIMIT 1");
     $stmt->execute([$user['user_id']]);
-    $pin_count = $stmt->fetch()['pin_count'];
+    $hasTransferPin = (bool)$stmt->fetchColumn();
     
     // Reset login attempts
     Security::resetLoginAttempts();
@@ -114,10 +114,9 @@ try {
     // Log successful login
     Security::logAudit('user_login', "User logged in: {$user['username']}", $user['user_id']);
     
-    // Redirect based on PIN setup status
-    if ($pin_count < 3) {
-        // If pins are not fully set up, send the user to the setup page
-        redirectWithMessage('../dashboard/setup_pins.php', 'Welcome back! Please complete your PIN setup to access all features.', 'success');
+    // Redirect based on Transfer PIN setup status.
+    if (!$hasTransferPin) {
+        redirectWithMessage('../dashboard/setup_pins.php', 'Welcome back! Please set your 4-digit Transfer PIN to continue.', 'info');
     } else {
         // Use explicit index.php instead of directory to avoid issues on some servers
         redirectWithMessage('../dashboard/index.php', 'Welcome back to CITYBRIDGEBANK!', 'success');

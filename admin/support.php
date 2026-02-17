@@ -3,6 +3,7 @@ require_once '../includes/config.php';
 if (!Security::isAdminLoggedIn()) {
     redirectWithMessage('login.php', 'Please login to access support tickets.', 'danger');
 }
+
 $db = Database::getInstance()->getConnection();
 $isSupportRole = (($_SESSION['admin_role'] ?? '') === 'support' || ($_SESSION['admin_role'] ?? '') === 'super_admin');
 
@@ -15,39 +16,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ticketId = (int)($_POST['ticket_id'] ?? 0);
         $response = Security::sanitizeInput($_POST['response'] ?? '');
         $status = Security::sanitizeInput($_POST['status'] ?? 'open');
-        if ($ticketId > 0 && $response !== '' && in_array($status, ['open','in_progress','closed'], true)) {
+
+        if ($ticketId > 0 && $response !== '' && in_array($status, ['open', 'in_progress', 'closed'], true)) {
             $stmt = $db->prepare('UPDATE support_tickets SET admin_response = ?, status = ?, updated_at = NOW(), closed_at = CASE WHEN ? = "closed" THEN NOW() ELSE NULL END WHERE ticket_id = ?');
             $stmt->execute([$response, $status, $status, $ticketId]);
+
             Security::logAudit('ticket_updated', 'Admin replied to ticket #' . $ticketId, null, $_SESSION['admin_id']);
+            Security::logAdminAction($_SESSION['admin_id'], 'ticket_updated', 'Replied to support ticket #' . $ticketId . ' status=' . $status, null);
+
             redirectWithMessage('support.php', 'Ticket updated successfully.', 'success');
         }
-    }
 
-    if (($_POST['action'] ?? '') === 'reset_transfer_pin') {
-        if (!$isSupportRole) {
-            redirectWithMessage('support.php', 'You do not have permission to reset Transfer PINs.', 'danger');
-        }
-        $userId = (int)($_POST['user_id'] ?? 0);
-        $reason = Security::sanitizeInput($_POST['reason'] ?? '');
-        if ($userId <= 0 || $reason === '') {
-            redirectWithMessage('support.php', 'Reset reason is required.', 'danger');
-        }
-
-        $newPin = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-        $hash = Security::hashPIN($newPin);
-        $upd = $db->prepare('UPDATE user_pins SET transfer_pin_hash = ?, transfer_pin_created_at = NOW() WHERE user_id = ?');
-        $upd->execute([$hash, $userId]);
-        if ($upd->rowCount() === 0) {
-            $ins = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at, transfer_pin_hash, transfer_pin_created_at) VALUES (?, 'authorization', ?, NULL, 1, NOW(), ?, NOW())");
-            $ins->execute([$userId, Security::hashPIN('0000'), $hash]);
-        }
-
-        $db->prepare('UPDATE users SET kyc_review_reason = CONCAT(IFNULL(kyc_review_reason, ""), "\nSupport reset Transfer PIN. Please set a new Transfer PIN from Security settings.") WHERE user_id = ?')->execute([$userId]);
-        Security::logAudit('transfer_pin_support_reset', 'Support reset transfer PIN. Reason: ' . $reason, $userId, $_SESSION['admin_id'], null, 'transfer', 'success');
-        Security::logAdminAction($_SESSION['admin_id'], 'transfer_pin_support_reset', 'Transfer PIN reset for user #' . $userId . '. Reason: ' . $reason, $userId);
-        $db->prepare("INSERT INTO kyc_logs (user_id, admin_id, action, reason) VALUES (?, ?, 'request_reupload', ?)")->execute([$userId, $_SESSION['admin_id'], 'Transfer PIN reset via support. Reason: ' . $reason]);
-
-        redirectWithMessage('support.php', 'Transfer PIN reset complete. User must set a new PIN.', 'success');
+        redirectWithMessage('support.php', 'Please provide a valid response and status.', 'danger');
     }
 }
 
@@ -77,13 +57,10 @@ require_once '../includes/header.php';
   </form>
 
   <?php if ($isSupportRole): ?>
-  <form method="POST" style="margin-top:.75rem;display:flex;gap:.5rem;align-items:end;flex-wrap:wrap;">
-    <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>">
-    <input type="hidden" name="action" value="reset_transfer_pin">
-    <input type="hidden" name="user_id" value="<?php echo (int)$t['user_id']; ?>">
-    <input class="form-control" style="max-width:360px" type="text" name="reason" placeholder="Reason for transfer PIN reset" required>
-    <button class="btn btn-secondary btn-sm" type="submit">Reset Transfer PIN (Support)</button>
-  </form>
+    <div style="margin-top:.75rem;">
+      <a href="manage_pins.php?user_id=<?php echo (int)$t['user_id']; ?>" class="btn btn-secondary btn-sm">Manage Authentication/Payment/Secure PINs</a>
+      <p style="margin-top:.35rem;color:var(--text-secondary)">Use admin PIN tools for reset/regenerate actions with a required reason and audit trail.</p>
+    </div>
   <?php endif; ?>
 </div></div>
 <?php endforeach; ?>
