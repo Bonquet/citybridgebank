@@ -38,9 +38,9 @@ try {
     
     // Find user
     if ($isEmail) {
-        $stmt = $db->prepare("SELECT user_id, username, email, password_hash, full_name, account_number, account_status, kyc_status FROM users WHERE email = ?");
+        $stmt = $db->prepare("SELECT user_id, username, email, password_hash, full_name, account_number, account_status, kyc_status, force_password_reset, reset_token, reset_token_expiry FROM users WHERE email = ?");
     } else {
-        $stmt = $db->prepare("SELECT user_id, username, email, password_hash, full_name, account_number, account_status, kyc_status FROM users WHERE username = ?");
+        $stmt = $db->prepare("SELECT user_id, username, email, password_hash, full_name, account_number, account_status, kyc_status, force_password_reset, reset_token, reset_token_expiry FROM users WHERE username = ?");
     }
     
     $stmt->execute([$username_email]);
@@ -68,6 +68,16 @@ try {
         redirectWithMessage('../public/login.php', 'Your account has been frozen. Please contact customer support.', 'danger');
     }
     
+
+    if (!empty($user['force_password_reset'])) {
+        $resetToken = $user['reset_token'] ?? '';
+        $resetExpiry = isset($user['reset_token_expiry']) ? strtotime((string)$user['reset_token_expiry']) : 0;
+        if ($resetToken !== '' && $resetExpiry > time()) {
+            Security::logAudit('forced_password_reset_redirect', 'User redirected to forced password reset', $user['user_id']);
+            redirectWithMessage('../public/reset_password.php?token=' . urlencode($resetToken), 'Password reset is required before you can continue.', 'info');
+        }
+    }
+
     // Check Transfer PIN setup status (user-owned PIN).
     $stmt = $db->prepare("SELECT 1 FROM user_pins WHERE user_id = ? AND transfer_pin_hash IS NOT NULL LIMIT 1");
     $stmt->execute([$user['user_id']]);

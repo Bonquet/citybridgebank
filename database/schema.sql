@@ -37,6 +37,7 @@ CREATE TABLE users (
     account_status ENUM('active', 'frozen', 'closed') DEFAULT 'active',
     reset_token VARCHAR(255) NULL,
     reset_token_expiry DATETIME NULL,
+    force_password_reset BOOLEAN DEFAULT FALSE,
     remember_token VARCHAR(255) NULL,
     token_expiry DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

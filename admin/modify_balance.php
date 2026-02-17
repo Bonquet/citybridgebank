@@ -1,91 +1,85 @@
 <?php
-// Handle balance modification requests from admin balance_management page
 require_once '../includes/config.php';
 
-// Ensure the caller is an authenticated admin
 if (!Security::isAdminLoggedIn()) {
     redirectWithMessage('login.php', 'Unauthorized access.', 'danger');
 }
-
-// Only accept POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirectWithMessage('balance_management.php', 'Invalid request method.', 'danger');
 }
-
-// Validate CSRF token
-$token = $_POST['csrf_token'] ?? '';
-if (!Security::verifyCSRFToken($token)) {
+if (!Security::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
     redirectWithMessage('balance_management.php', 'Invalid or expired session token.', 'danger');
 }
 
-// Collect and validate inputs
-$user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
-$action = $_POST['action'] ?? '';
-$amount = isset($_POST['amount']) ? floatval($_POST['amount']) : 0;
-$reason = trim($_POST['reason'] ?? '');
+$user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+$action = Security::sanitizeInput($_POST['action'] ?? '');
+$amount = isset($_POST['amount']) ? (float)$_POST['amount'] : 0.0;
+$reason = trim(Security::sanitizeInput($_POST['reason'] ?? ''));
 
-// Basic validation
-if ($user_id <= 0 || !in_array($action, ['credit','debit','adjustment'], true) || $amount <= 0 || $reason === '') {
+if ($user_id <= 0 || !in_array($action, ['credit', 'debit', 'adjustment'], true) || $reason === '') {
     redirectWithMessage('balance_management.php', 'Invalid input parameters.', 'danger');
+}
+if (($action === 'credit' || $action === 'debit') && $amount <= 0) {
+    redirectWithMessage('balance_management.php', 'Amount must be greater than zero.', 'danger');
+}
+if ($action === 'adjustment' && $amount == 0.0) {
+    redirectWithMessage('balance_management.php', 'Adjustment cannot be zero.', 'danger');
 }
 
 try {
     $db = Database::getInstance()->getConnection();
-    // Fetch current user balance
-    $stmt = $db->prepare("SELECT account_balance, account_status FROM users WHERE user_id = ?");
+    $db->beginTransaction();
+
+    $stmt = $db->prepare("SELECT account_balance, account_status FROM users WHERE user_id = ? FOR UPDATE");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
     if (!$user) {
-        redirectWithMessage('balance_management.php', 'User not found.', 'danger');
+        throw new RuntimeException('User not found.');
     }
-    $balance = floatval($user['account_balance']);
-    // Calculate new balance based on action
+    if ($user['account_status'] !== 'active') {
+        throw new RuntimeException('Cannot modify balance for non-active account.');
+    }
+
+    $balance = (float)$user['account_balance'];
+    $delta = 0.0;
+    $transactionType = 'credit';
+
     if ($action === 'credit') {
-        $newBalance = $balance + $amount;
+        $delta = abs($amount);
+        $transactionType = 'credit';
     } elseif ($action === 'debit') {
-        // Disallow debiting beyond zero
-        if ($balance - $amount < 0) {
-            redirectWithMessage('balance_management.php', 'Insufficient funds to perform debit.', 'danger');
-        }
-        $newBalance = $balance - $amount;
+        $delta = -abs($amount);
+        $transactionType = 'debit';
     } else {
-        // Adjustment: treat as credit (positive addition). Admin may enter negative amount for subtraction.
-        $newBalance = $balance + $amount;
+        $delta = $amount;
+        $transactionType = $delta >= 0 ? 'credit' : 'debit';
     }
-    // Begin transaction
-    $db->beginTransaction();
-    // Update user balance
+
+    $newBalance = $balance + $delta;
+    if ($newBalance < 0) {
+        throw new RuntimeException('Insufficient funds to perform this action.');
+    }
+
     $stmt = $db->prepare("UPDATE users SET account_balance = ? WHERE user_id = ?");
     $stmt->execute([$newBalance, $user_id]);
-    // Record transaction
+
     $reference = Security::generateReferenceNumber();
-    // Determine transaction type: credit for positive amounts, debit for negative amounts
-    $txnType = ($action === 'debit') ? 'debit' : 'credit';
-    $txnDesc = ucfirst($action) . ' by admin: ' . $reason;
-    $amountForTxn = ($action === 'debit') ? -$amount : $amount;
-    $stmt = $db->prepare("INSERT INTO transactions (user_id, reference_number, transaction_type, description, amount, fees, total, balance_after, status, authorization_pin_used, payment_pin_used, secure_pass_used, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'completed', 0, 0, 0, NOW())");
-    $stmt->execute([
-        $user_id,
-        $reference,
-        $txnType,
-        $txnDesc,
-        $amount,
-        $amountForTxn,
-        $newBalance
-    ]);
-    $transactionId = $db->lastInsertId();
-    // Commit the transaction
+    $txnDesc = 'Admin ' . $action . ' balance update. Reason: ' . $reason;
+    $stmt = $db->prepare("INSERT INTO transactions (user_id, transaction_type, amount, description, reference_number, status, balance_after, authorization_pin_used, payment_pin_used, secure_pass_used, transaction_date) VALUES (?, ?, ?, ?, ?, 'completed', ?, 0, 0, 0, NOW())");
+    $stmt->execute([$user_id, $transactionType, abs($delta), $txnDesc, $reference, $newBalance]);
+    $transactionId = (int)$db->lastInsertId();
+
     $db->commit();
-    // Audit & admin logs
+
     $adminId = $_SESSION['admin_id'] ?? null;
-    Security::logAudit('balance_change', "Admin {$adminId} performed {$action} of {$amount} on user {$user_id}. Reason: {$reason}", $user_id, $adminId, $transactionId, null, 'success');
-    Security::logAdminAction($adminId, 'balance_change', ucfirst($action) . " of {$amount} for user {$user_id}. Reason: {$reason}", $user_id);
+    Security::logAudit('balance_change', "Admin performed {$action} ({$delta}) for user {$user_id}. Reason: {$reason}", $user_id, $adminId, $transactionId, null, 'success');
+    Security::logAdminAction($adminId, 'balance_change', ucfirst($action) . " amount {$delta} for user {$user_id}. Reason: {$reason}", $user_id);
+
     redirectWithMessage('balance_management.php', 'Balance updated successfully.', 'success');
-} catch (Exception $e) {
-    if ($db->inTransaction()) {
+} catch (Throwable $e) {
+    if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
     error_log('Balance modification error: ' . $e->getMessage());
-    redirectWithMessage('balance_management.php', 'An error occurred updating balance.', 'danger');
+    redirectWithMessage('balance_management.php', 'An error occurred updating balance: ' . $e->getMessage(), 'danger');
 }
-?>

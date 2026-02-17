@@ -85,13 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Update password and clear reset token
     $hash = Security::hashPassword($new_password);
     try {
-        $stmt = $db->prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL WHERE user_id = ?");
+        $stmt = $db->prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL, force_password_reset = 0 WHERE user_id = ?");
         $stmt->execute([$hash, $user['user_id']]);
     } catch (PDOException $e) {
         error_log("Password reset update error: " . $e->getMessage());
         echo "An error occurred updating your password. Please try again later.";
         exit;
     }
+    Security::logAudit('password_reset_completed', 'Password reset completed', $user['user_id']);
     echo "Your password has been reset successfully. You may now <a href=\"login.php\">log in</a>.";
     exit;
 }

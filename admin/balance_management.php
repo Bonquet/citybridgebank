@@ -1,54 +1,36 @@
 <?php
-// Load configuration for database connection and security functions
 require_once '../includes/config.php';
-// Page title for Balance Management
 $pageTitle = 'Balance Management';
-// Render the header (includes navigation and CSS)
-require_once '../includes/header.php';
 
-// Check if admin is logged in
 if (!Security::isAdminLoggedIn()) {
     redirectWithMessage('login.php', 'Please login to access balance management.', 'danger');
 }
 
 try {
     $db = Database::getInstance()->getConnection();
-    
-    // Get filter parameters
     $search = isset($_GET['search']) ? Security::sanitizeInput($_GET['search']) : '';
-    
-    // Build query
+
     $where_conditions = ["account_status != 'closed'"];
     $params = [];
-    
-    if (!empty($search)) {
+
+    if ($search !== '') {
         $where_conditions[] = "(username LIKE ? OR email LIKE ? OR full_name LIKE ? OR account_number LIKE ?)";
         $search_param = "%{$search}%";
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $params[] = $search_param;
+        $params = [$search_param, $search_param, $search_param, $search_param];
     }
-    
+
     $where_clause = implode(' AND ', $where_conditions);
-    
-    // Get users
-    $stmt = $db->prepare("SELECT * FROM users WHERE {$where_clause} ORDER BY account_balance DESC LIMIT 50");
+    $stmt = $db->prepare("SELECT user_id, full_name, username, email, account_number, account_balance, account_status FROM users WHERE {$where_clause} ORDER BY account_balance DESC LIMIT 50");
     $stmt->execute($params);
     $users = $stmt->fetchAll();
-    
 } catch (PDOException $e) {
     error_log("Balance management error: " . $e->getMessage());
     redirectWithMessage('index.php', 'An error occurred loading balance management.', 'danger');
 }
 
-// Generate a CSRF token for the balance modification modal. This token will be
-// used in the modal form to protect against cross‑site request forgery when
-// submitting balance updates to modify_balance.php.
 $balance_csrf = Security::generateCSRFToken();
+require_once '../includes/header.php';
 ?>
-
-<!-- Page Header -->
 <section style="background: linear-gradient(135deg, var(--dark) 0%, var(--primary-blue) 100%); color: var(--white); padding: 2rem 0;">
     <div class="container">
         <h1><i class="fas fa-balance-scale text-gold"></i> Balance Management</h1>
@@ -56,16 +38,13 @@ $balance_csrf = Security::generateCSRFToken();
     </div>
 </section>
 
-<!-- Balance Management Content -->
 <section style="padding: 2rem 0;">
     <div class="container">
-        <!-- Critical Notice -->
         <div class="danger-box" style="margin-bottom: 2rem;">
             <h4 style="color: var(--primary-blue);"><i class="fas fa-exclamation-triangle text-gold"></i> CRITICAL: Balance Modifications Require Reason</h4>
-            <p style="margin: 0;">All balance changes (Credit/Debit/Adjustment) MUST include a mandatory reason. Every balance modification is permanently logged with your admin ID, timestamp, and reason. These logs are immutable and cannot be deleted.</p>
+            <p style="margin: 0;">All balance changes (Credit/Debit/Adjustment) MUST include a mandatory reason.</p>
         </div>
-        
-        <!-- Search -->
+
         <div class="card" style="margin-bottom: 2rem;">
             <div class="card-body">
                 <form action="" method="GET">
@@ -81,8 +60,7 @@ $balance_csrf = Security::generateCSRFToken();
                 </form>
             </div>
         </div>
-        
-        <!-- User Balances -->
+
         <div class="card">
             <div class="card-header">
                 <h2><i class="fas fa-list text-gold"></i> User Balances</h2>
@@ -90,48 +68,23 @@ $balance_csrf = Security::generateCSRFToken();
             </div>
             <div class="card-body">
                 <?php if (empty($users)): ?>
-                    <div class="info-box text-center">
-                        <p>No users found matching your criteria.</p>
-                    </div>
+                    <div class="info-box text-center"><p>No users found matching your criteria.</p></div>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table">
                             <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Username</th>
-                                    <th>Account Number</th>
-                                    <th>Current Balance</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
+                                <tr><th>User</th><th>Username</th><th>Account Number</th><th>Current Balance</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($users as $user): ?>
                                     <tr>
-                                        <td>
-                                            <strong><?php echo htmlspecialchars($user['full_name']); ?></strong><br>
-                                            <small><?php echo htmlspecialchars($user['email']); ?></small>
-                                        </td>
+                                        <td><strong><?php echo htmlspecialchars($user['full_name']); ?></strong><br><small><?php echo htmlspecialchars($user['email']); ?></small></td>
                                         <td><?php echo htmlspecialchars($user['username']); ?></td>
                                         <td><?php echo htmlspecialchars($user['account_number']); ?></td>
+                                        <td><strong style="font-size:1.125rem;color:<?php echo $user['account_balance'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>;"><?php echo formatCurrency($user['account_balance']); ?></strong></td>
+                                        <td><span class="badge <?php echo $user['account_status'] === 'active' ? 'badge-success' : 'badge-warning'; ?>"><?php echo ucfirst($user['account_status']); ?></span></td>
                                         <td>
-                                            <strong style="font-size: 1.125rem; color: <?php echo $user['account_balance'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>;">
-                                                <?php echo formatCurrency($user['account_balance']); ?>
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <span class="badge <?php 
-                                                echo $user['account_status'] == 'active' ? 'badge-success' : 'badge-warning'; 
-                                            ?>">
-                                                <?php echo ucfirst($user['account_status']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <!-- Trigger the balance modification modal instead of native prompts -->
-                                            <button class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;" onclick="openBalanceModal(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>')">
-                                                <i class="fas fa-edit"></i> Modify
-                                            </button>
+                                            <button class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;" onclick="openBalanceModal(<?php echo (int)$user['user_id']; ?>)"><i class="fas fa-edit"></i> Modify</button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -144,7 +97,6 @@ $balance_csrf = Security::generateCSRFToken();
     </div>
 </section>
 
-<!-- Balance Modification Modal -->
 <div id="balanceModal" class="pin-modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 10000;">
     <div class="pin-modal-content glass-card" style="width: 400px; padding: 1.5rem; position: relative;">
         <h3 style="margin-bottom: 1rem; color: var(--accent-blue);">Modify Balance</h3>
@@ -156,12 +108,13 @@ $balance_csrf = Security::generateCSRFToken();
                 <select id="balance_action" name="action" class="form-control" required>
                     <option value="credit">Credit (Add funds)</option>
                     <option value="debit">Debit (Remove funds)</option>
-                    <option value="adjustment">Adjustment (Manual correction)</option>
+                    <option value="adjustment">Adjustment (Signed amount)</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="balance_amount">Amount *</label>
-                <input type="number" id="balance_amount" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                <input type="number" id="balance_amount" name="amount" class="form-control" step="0.01" placeholder="0.00" required>
+                <small class="text-muted">For adjustment, use positive/negative values. Credit/Debit require positive amount.</small>
             </div>
             <div class="form-group">
                 <label for="balance_reason">Reason *</label>
@@ -177,17 +130,13 @@ $balance_csrf = Security::generateCSRFToken();
 </div>
 
 <script>
-// Open the balance modification modal and populate the user ID field
-function openBalanceModal(userId, username) {
+function openBalanceModal(userId) {
     document.getElementById('balance_user_id').value = userId;
-    // Reset form fields
     document.getElementById('balance_action').value = 'credit';
     document.getElementById('balance_amount').value = '';
     document.getElementById('balance_reason').value = '';
     document.getElementById('balanceModal').style.display = 'flex';
 }
-
-// Close the balance modification modal
 function closeBalanceModal() {
     document.getElementById('balanceModal').style.display = 'none';
 }

@@ -85,9 +85,13 @@ require_once '../includes/header.php';
                 <!-- Crypto Instructions -->
                 <div class="form-group" id="crypto-instructions" style="display: none;">
                     <label>Bitcoin Address</label>
-                    <p style="margin-bottom: 0.5rem;">
-                        Send Bitcoin to <strong>bc1qz4usm25a56plnf544vjeuvqz53a7l0huqdk9fr</strong>
-                    </p>
+                    <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:0.5rem;">
+                        <p style="margin:0;">
+                            Send Bitcoin to <strong id="btcAddress">bc1qz4usm25a56plnf544vjeuvqz53a7l0huqdk9fr</strong>
+                        </p>
+                        <button type="button" id="copyBtcBtn" class="btn btn-secondary btn-sm">Copy Address</button>
+                    </div>
+                    <p id="copyBtcFeedback" style="margin-bottom:0.5rem; font-size:0.9rem; color: var(--text-muted);"></p>
                     <p style="margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">
                         After sending the BTC, please provide the transaction ID or reference in the description field below to help us credit your deposit quickly.
                     </p>
@@ -118,6 +122,23 @@ document.getElementById('deposit_method').addEventListener('change', function() 
         cryptoDiv.style.display = 'none';
     }
 });
+
+const copyBtn = document.getElementById('copyBtcBtn');
+if (copyBtn) {
+    copyBtn.addEventListener('click', async function() {
+        const addr = document.getElementById('btcAddress').textContent.trim();
+        const feedback = document.getElementById('copyBtcFeedback');
+        try {
+            await navigator.clipboard.writeText(addr);
+            feedback.textContent = 'Copied';
+            feedback.style.color = 'var(--success)';
+        } catch (err) {
+            feedback.textContent = 'Copy failed';
+            feedback.style.color = 'var(--danger)';
+        }
+    });
+}
+
 </script>
 
 <?php require_once '../includes/footer.php'; ?>

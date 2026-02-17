@@ -76,7 +76,16 @@ $users = $stmt->fetchAll();
       <p><strong>KYC:</strong> <span id="f_kyc"></span></p>
       <p><strong>Joined:</strong> <span id="f_joined"></span></p>
     </div>
-    <div style="display:flex;justify-content:flex-end;gap:.5rem;">
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;">
+
+    <form method="POST" action="reset_user_password.php" style="margin-right:auto;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="<?php echo Security::generateCSRFToken(); ?>">
+      <input type="hidden" name="user_id" id="reset_password_user_id" value="">
+      <input class="form-control" type="text" name="reason" placeholder="Password reset reason" required style="max-width:220px;">
+      <label style="display:flex;align-items:center;gap:.25rem;"><input type="checkbox" name="force_reset" value="1">Force reset on next login</label>
+      <button type="submit" class="btn btn-outline btn-sm">Trigger Password Reset</button>
+    </form>
+
       <a id="managePinsBtn" class="btn btn-secondary" href="#">Manage PINs</a>
       <button type="button" class="btn btn-primary" onclick="closeUserModal()">Close</button>
     </div>
@@ -106,6 +115,7 @@ async function openUserModal(userId){
     setUserField('f_bal',u.account_balance); setUserField('f_status',u.account_status); setUserField('f_kyc',u.kyc_status);
     setUserField('f_joined',u.created_at);
     document.getElementById('managePinsBtn').href = 'manage_pins.php?user_id='+encodeURIComponent(u.user_id);
+    document.getElementById('reset_password_user_id').value = u.user_id;
   } catch(e){
     document.getElementById('userModalMessage').textContent = 'Error loading user details.';
     document.getElementById('userModalMessage').style.display='block';

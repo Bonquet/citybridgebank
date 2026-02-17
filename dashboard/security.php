@@ -5,14 +5,9 @@ if (!Security::isLoggedIn()) {
 }
 $db = Database::getInstance()->getConnection();
 
-$pinStmt = $db->prepare('SELECT pin_type, transfer_pin_hash FROM user_pins WHERE user_id = ?');
+$pinStmt = $db->prepare('SELECT transfer_pin_hash FROM user_pins WHERE user_id = ? AND transfer_pin_hash IS NOT NULL LIMIT 1');
 $pinStmt->execute([$_SESSION['user_id']]);
-$pins = $pinStmt->fetchAll();
-$status = ['authorization' => false, 'payment' => false, 'secure_pass' => false, 'transfer' => false];
-foreach ($pins as $p) {
-    if (isset($status[$p['pin_type']])) { $status[$p['pin_type']] = true; }
-    if (!empty($p['transfer_pin_hash'])) { $status['transfer'] = true; }
-}
+$transferSet = (bool)$pinStmt->fetchColumn();
 
 $userStmt = $db->prepare('SELECT kyc_status, kyc_review_reason, kyc_document FROM users WHERE user_id = ?');
 $userStmt->execute([$_SESSION['user_id']]);
@@ -29,13 +24,9 @@ require_once '../includes/header.php';
 <section style="padding:2rem 0;"><div class="container">
 
 <div class="card" style="margin-bottom:1rem;"><div class="card-body">
-  <h2>PIN Controls</h2>
-  <p>Transfer PIN: <strong><?php echo $status['transfer'] ? 'Set' : 'Not Set'; ?></strong> <a class="btn btn-outline btn-sm" href="setup_pins.php?change=1">Change Transfer PIN</a></p>
-  <p>Authentication PIN: <strong><?php echo $status['authorization'] ? 'Configured by Admin' : 'Not configured'; ?></strong></p>
-  <p>Payment PIN: <strong><?php echo $status['payment'] ? 'Configured by Admin' : 'Not configured'; ?></strong></p>
-  <p>Secure PIN: <strong><?php echo $status['secure_pass'] ? 'Configured by Admin' : 'Not configured'; ?></strong></p>
-  <p style="color:var(--text-secondary)">Users cannot view or change Authentication/Payment/Secure PINs. Open a support ticket for assistance.</p>
-  <a class="btn btn-secondary btn-sm" href="support.php">Open Support Ticket</a>
+  <h2>Transfer PIN</h2>
+  <p>Status: <strong><?php echo $transferSet ? 'Set' : 'Not Set'; ?></strong></p>
+  <a class="btn btn-outline btn-sm" href="setup_pins.php?change=1">Set / Change Transfer PIN</a>
 </div></div>
 
 <div class="card" style="margin-bottom:1rem;"><div class="card-body">

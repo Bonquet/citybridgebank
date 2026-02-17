@@ -10,7 +10,6 @@ $user = $stmt->fetch();
 if (!$user || $user['account_status'] !== 'active') {
     redirectWithMessage('index.php', 'Your account is not active.', 'danger');
 }
-
 if (($user['kyc_status'] ?? 'none') !== 'verified') {
     redirectWithMessage('security.php', 'KYC verification is required before this transaction type. Please complete KYC in Security settings.', 'info');
 }
@@ -28,7 +27,18 @@ require_once '../includes/header.php';
 <input type="hidden" name="secure_pass_pin" id="secure_pass_pin_hidden">
 <input type="hidden" name="transfer_pin" id="transfer_pin_hidden">
 <div class="form-group"><label>Recipient Account</label><input class="form-control" type="text" name="recipient_account" required></div>
-<div class="form-group"><label>Recipient Bank</label><input class="form-control" type="text" name="recipient_bank" required></div>
+
+<div class="form-group">
+  <label for="bank_search">Recipient Bank (U.S. bank search)</label>
+  <input class="form-control" type="text" id="bank_search" placeholder="Search U.S. bank name (min 2 characters)">
+  <small class="text-muted">Search from FDIC institution directory. If not found, use manual entry below.</small>
+</div>
+<div class="form-group">
+  <label for="recipient_bank">Selected/Manual Bank Name</label>
+  <input class="form-control" type="text" name="recipient_bank" id="recipient_bank" placeholder="Selected bank appears here or type manually" required>
+</div>
+<div id="bank_results" class="card" style="display:none; margin-bottom:1rem;"><div class="card-body" id="bank_results_list"></div></div>
+
 <div class="form-group"><label>Amount</label><input class="form-control" type="number" step="0.01" min="1" name="amount" required></div>
 <div class="form-group"><label>Description</label><input class="form-control" type="text" name="description" required minlength="5"></div>
 <button type="button" class="btn btn-primary" id="openPinModalBtn">Continue</button>
@@ -100,5 +110,46 @@ document.getElementById('openPinModalBtn').addEventListener('click', function(){
   showStage();
 });
 document.getElementById('verifyPinBtn').addEventListener('click', verifyCurrentStage);
+
+let bankTimer = null;
+const bankSearch = document.getElementById('bank_search');
+const bankResults = document.getElementById('bank_results');
+const bankResultsList = document.getElementById('bank_results_list');
+const recipientBank = document.getElementById('recipient_bank');
+
+function renderBanks(items, message){
+  bankResults.style.display = 'block';
+  if(!items.length){
+    bankResultsList.innerHTML = '<p style="margin:0;">' + (message || 'No matches. You can type bank name manually below.') + '</p>';
+    return;
+  }
+  bankResultsList.innerHTML = items.map(b =>
+    `<button type="button" class="btn btn-outline btn-sm" style="margin:.25rem; text-align:left;" data-bank="${b.name.replace(/"/g,'&quot;')}">${b.label}</button>`
+  ).join('');
+  bankResultsList.querySelectorAll('button[data-bank]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      recipientBank.value = btn.getAttribute('data-bank');
+      bankResults.style.display = 'none';
+    });
+  });
+}
+
+bankSearch.addEventListener('input', () => {
+  const q = bankSearch.value.trim();
+  if (bankTimer) clearTimeout(bankTimer);
+  if (q.length < 2){
+    bankResults.style.display = 'none';
+    return;
+  }
+  bankTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('us_banks.php?q=' + encodeURIComponent(q));
+      const data = await r.json();
+      renderBanks(data.banks || [], data.message || 'No matches. You can type bank name manually below.');
+    } catch (e) {
+      renderBanks([], 'Bank lookup unavailable. Enter bank name manually.');
+    }
+  }, 250);
+});
 </script>
 <?php require_once '../includes/footer.php'; ?>
