@@ -14,7 +14,7 @@ require_once '../includes/header.php';
                 Terms of <span class="hero-title-gradient">Service</span>
             </h1>
             <p class="hero-subtitle">
-                Please read these terms carefully before using CITYBRIDGEBANK services.
+                Please read these terms carefully before using CITIBRIDGE services.
             </p>
         </div>
     </div>
@@ -26,7 +26,7 @@ require_once '../includes/header.php';
         <div class="glass-card" style="max-width: 900px; margin: 0 auto;">
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">1. Acceptance of Terms</h2>
             <p style="color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.8;">
-                By accessing or using CITYBRIDGEBANK services, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using our services.
+                By accessing or using CITIBRIDGE services, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using our services.
             </p>
             
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">2. Account Registration</h2>
@@ -36,7 +36,7 @@ require_once '../includes/header.php';
             
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">3. Services</h2>
             <p style="color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.8;">
-                CITYBRIDGEBANK provides various banking services including checking accounts, savings accounts, transfers, bill payments, and more. We reserve the right to modify, suspend, or discontinue any service at any time without notice.
+                CITIBRIDGE provides various banking services including checking accounts, savings accounts, transfers, bill payments, and more. We reserve the right to modify, suspend, or discontinue any service at any time without notice.
             </p>
             
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">4. Security and Privacy</h2>
@@ -56,7 +56,7 @@ require_once '../includes/header.php';
             
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">7. Limitation of Liability</h2>
             <p style="color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.8;">
-                CITYBRIDGEBANK shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our liability is limited to the maximum extent permitted by law.
+                CITIBRIDGE shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our liability is limited to the maximum extent permitted by law.
             </p>
             
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">8. Termination</h2>
@@ -79,7 +79,7 @@ require_once '../includes/header.php';
                 If you have any questions about these Terms, please contact us at:
             </p>
             <p style="color: var(--text-secondary); line-height: 1.8;">
-                <strong>Email:</strong> support@citybridgebank.com<br>
+                <strong>Email:</strong> support@citibridge.net<br>
                 <strong>Phone:</strong> +12489164654
             </p>
             

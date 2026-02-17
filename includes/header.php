@@ -59,8 +59,8 @@ if ($inPublic) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="CITYBRIDGEBANK - Your Trusted Banking Partner">
-    <title>CITYBRIDGEBANK - Modern Banking</title>
+    <meta name="description" content="CITIBRIDGE - Your Trusted Banking Partner">
+    <title>CITIBRIDGE - Modern Banking</title>
     <link rel="stylesheet" href="<?php echo $assetPath; ?>css/modern-style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,7 +72,7 @@ if ($inPublic) {
     <div class="header-content">
         <a href="<?php echo $isAdmin ? $adminDashboardPath : ($isUser ? $userDashboardPath : $publicBase . 'index.php'); ?>" class="logo">
             <div class="logo-icon"><i class="fas fa-building-columns"></i></div>
-            CITYBRIDGEBANK
+            CITIBRIDGE
         </a>
 
         <nav>

@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Registration Processing
+// CITIBRIDGE Registration Processing
 require_once 'config.php';
 
 // Runtime error display is controlled centrally in includes/config.php.

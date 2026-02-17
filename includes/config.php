@@ -27,9 +27,9 @@ define('LOGIN_TIMEOUT', 900);
 define('CSRF_TOKEN_EXPIRY', 3600);
 
 // Bank Configuration
-define('BANK_NAME', 'CITYBRIDGEBANK');
-define('BANK_EMAIL', 'support@citybridgebank.com');
-define('ADMIN_EMAIL', 'admin@citybridgebank.com');
+define('BANK_NAME', 'CITIBRIDGE');
+define('BANK_EMAIL', 'support@citibridge.net');
+define('ADMIN_EMAIL', 'admin@citibridge.net');
 define('DEFAULT_BALANCE', 0.00);
 
 // Transaction Limits

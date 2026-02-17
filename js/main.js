@@ -1,4 +1,4 @@
-// CITYBRIDGEBANK Main JavaScript
+// CITIBRIDGE Main JavaScript
 // Handles loading animation, form submissions, and interactions
 
 // Loading Screen Animation

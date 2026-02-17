@@ -40,7 +40,7 @@ require_once '../includes/header.php';
                 </div>
                 <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">Internal Transfers</h3>
                 <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 1.5rem;">
-                    Transfer money between your CITYBRIDGEBANK accounts instantly. No fees, no waiting.
+                    Transfer money between your CITIBRIDGE accounts instantly. No fees, no waiting.
                 </p>
                 <ul style="color: var(--text-secondary); line-height: 2; list-style: none;">
                     <li><i class="fas fa-check" style="color: var(--accent-blue); margin-right: 0.75rem;"></i> Instant transfers</li>
@@ -116,7 +116,7 @@ require_once '../includes/header.php';
                 </div>
                 <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">Mobile Payments</h3>
                 <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 1.5rem;">
-                    Use your CITYBRIDGEBANK card with Apple Pay, Google Pay, or Samsung Pay.
+                    Use your CITIBRIDGE card with Apple Pay, Google Pay, or Samsung Pay.
                 </p>
                 <ul style="color: var(--text-secondary); line-height: 2; list-style: none;">
                     <li><i class="fas fa-check" style="color: var(--accent-blue); margin-right: 0.75rem;"></i> Contactless payments</li>

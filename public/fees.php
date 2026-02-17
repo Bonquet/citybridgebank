@@ -133,16 +133,16 @@ require_once '../includes/header.php';
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
             <div class="glass-card" style="text-align: center; padding: 2.5rem;">
                 <i class="fas fa-money-bill-wave" style="font-size: 3rem; color: var(--accent-blue); margin-bottom: 1.5rem;"></i>
-                <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">CITYBRIDGEBANK ATMs</h3>
+                <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">CITIBRIDGE ATMs</h3>
                 <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent-blue); margin-bottom: 1rem;">FREE</div>
-                <p style="color: var(--text-secondary);">Unlimited free withdrawals at all CITYBRIDGEBANK ATMs</p>
+                <p style="color: var(--text-secondary);">Unlimited free withdrawals at all CITIBRIDGE ATMs</p>
             </div>
             
             <div class="glass-card" style="text-align: center; padding: 2.5rem;">
                 <i class="fas fa-globe" style="font-size: 3rem; color: var(--accent-purple); margin-bottom: 1.5rem;"></i>
                 <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">Other Bank ATMs</h3>
                 <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent-purple); margin-bottom: 1rem;">$2.50</div>
-                <p style="color: var(--text-secondary);">Fee for using non-CITYBRIDGEBANK ATMs</p>
+                <p style="color: var(--text-secondary);">Fee for using non-CITIBRIDGE ATMs</p>
             </div>
             
             <div class="glass-card" style="text-align: center; padding: 2.5rem;">

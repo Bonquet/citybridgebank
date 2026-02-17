@@ -27,7 +27,7 @@ $csrf_token = Security::generateCSRFToken();
                     <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">
                         Create Account
                     </h1>
-                    <p style="color: var(--text-secondary);">Join CITYBRIDGEBANK today</p>
+                    <p style="color: var(--text-secondary);">Join CITIBRIDGE today</p>
                 </div>
                 
                 <?php if (isset($_SESSION['error'])): ?>

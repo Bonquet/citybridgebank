@@ -83,9 +83,9 @@ $csrf_token = Security::generateCSRFToken();
                     Send us an email and we'll respond within 24 hours.
                 </p>
                 <p style="font-size: 1.1rem; font-weight: 600; color: var(--accent-blue); margin-bottom: 2rem;">
-                    support@citybridgebank.com
+                    support@citibridge.net
                 </p>
-                <a href="mailto:support@citybridgebank.com" class="btn btn-primary" style="width: 100%;">
+                <a href="mailto:support@citibridge.net" class="btn btn-primary" style="width: 100%;">
                     <i class="fas fa-paper-plane" style="margin-right: 0.5rem;"></i> Send Email
                 </a>
             </div>
@@ -204,7 +204,7 @@ $csrf_token = Security::generateCSRFToken();
         <div style="max-width: 800px; margin: 0 auto;">
             <div class="glass-card" style="margin-bottom: 1rem;">
                 <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">How long does it take to process a withdrawal?</h4>
-                <p style="color: var(--text-secondary);">Withdrawals to CITYBRIDGEBANK accounts are instant. External bank transfers take 1-2 business days.</p>
+                <p style="color: var(--text-secondary);">Withdrawals to CITIBRIDGE accounts are instant. External bank transfers take 1-2 business days.</p>
             </div>
             
             <div class="glass-card" style="margin-bottom: 1rem;">

@@ -60,7 +60,7 @@ require_once '../includes/header.php';
         <div class="glass-card" style="margin-bottom: 3rem;">
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">Anti-Money Laundering (AML) & Know Your Customer (KYC)</h2>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.8;">
-                CITYBRIDGEBANK maintains a comprehensive Anti-Money Laundering (AML) program in compliance with the Bank Secrecy Act (BSA) and USA PATRIOT Act. Our Know Your Customer (KYC) procedures ensure we verify the identity of all customers and understand their financial activities.
+                CITIBRIDGE maintains a comprehensive Anti-Money Laundering (AML) program in compliance with the Bank Secrecy Act (BSA) and USA PATRIOT Act. Our Know Your Customer (KYC) procedures ensure we verify the identity of all customers and understand their financial activities.
             </p>
             <ul style="color: var(--text-secondary); line-height: 2; list-style: none;">
                 <li><i class="fas fa-check" style="color: var(--accent-blue); margin-right: 0.75rem;"></i> Customer identification and verification</li>
@@ -90,7 +90,7 @@ require_once '../includes/header.php';
         <div class="glass-card" style="margin-bottom: 3rem;">
             <h2 style="margin-bottom: 2rem; color: var(--accent-purple);">Fair Lending & Equal Credit Opportunity</h2>
             <p style="color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.8;">
-                CITYBRIDGEBANK is committed to providing equal access to credit and does not discriminate on the basis of race, color, religion, national origin, sex, marital status, age, or any other prohibited basis. We comply with the Equal Credit Opportunity Act (ECOA), Fair Housing Act, and other fair lending laws.
+                CITIBRIDGE is committed to providing equal access to credit and does not discriminate on the basis of race, color, religion, national origin, sex, marital status, age, or any other prohibited basis. We comply with the Equal Credit Opportunity Act (ECOA), Fair Housing Act, and other fair lending laws.
             </p>
         </div>
         
@@ -118,8 +118,8 @@ require_once '../includes/header.php';
                 If you have any questions about our compliance practices or need to report a concern, please contact our Compliance Officer.
             </p>
             <div style="display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;">
-                <a href="mailto:compliance@citybridgebank.com" class="btn btn-primary">
-                    <i class="fas fa-envelope" style="margin-right: 0.5rem;"></i> compliance@citybridgebank.com
+                <a href="mailto:compliance@citibridge.net" class="btn btn-primary">
+                    <i class="fas fa-envelope" style="margin-right: 0.5rem;"></i> compliance@citibridge.net
                 </a>
                 <a href="tel:+12489164654" class="btn btn-secondary">
                     <i class="fas fa-phone" style="margin-right: 0.5rem;"></i> +12489164654

@@ -1,5 +1,5 @@
 // ============================================
-// CITYBRIDGEBANK - Modern JavaScript
+// CITIBRIDGE - Modern JavaScript
 // ============================================
 
 // ===== LOADING SCREEN =====
@@ -287,4 +287,4 @@ function initLazyLoading() {
 // Initialize lazy loading
 initLazyLoading();
 
-console.log('CITYBRIDGEBANK - Modern JavaScript Loaded');
+console.log('CITIBRIDGE - Modern JavaScript Loaded');

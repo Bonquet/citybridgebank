@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Password Reset
+// CITIBRIDGE Password Reset
 require_once '../includes/config.php';
 
 // Display password reset form when token provided

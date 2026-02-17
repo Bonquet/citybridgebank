@@ -15,7 +15,7 @@ function fetchApi(string $url): string {
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_CONNECTTIMEOUT => 6,
             CURLOPT_TIMEOUT => 15,
-            CURLOPT_USERAGENT => 'CityBridgeBank/1.0'
+            CURLOPT_USERAGENT => 'CitiBridge/1.0'
         ]);
         $body = (string)curl_exec($ch);
         curl_close($ch);
@@ -25,7 +25,7 @@ function fetchApi(string $url): string {
     $ctx = stream_context_create([
         'http' => [
             'timeout' => 15,
-            'header' => "User-Agent: CityBridgeBank/1.0\r\n"
+            'header' => "User-Agent: CitiBridge/1.0\r\n"
         ]
     ]);
     return (string)@file_get_contents($url, false, $ctx);

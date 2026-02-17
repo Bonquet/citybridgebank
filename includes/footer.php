@@ -5,7 +5,7 @@
     <div class='footer-content'>
         <!-- About Section -->
         <div class='footer-section'>
-            <h3>About CITYBRIDGEBANK</h3>
+            <h3>About CITIBRIDGE</h3>
             <p style='color: var(--text-secondary); line-height: 1.8;'>
                 We are a modern digital bank committed to providing secure, innovative, and user-friendly banking solutions. Join thousands of satisfied customers who trust us with their financial future.
             </p>
@@ -79,7 +79,7 @@
             <h3>Contact Us</h3>
             <ul class='footer-links'>
                 <li><i class='fas fa-phone' style='margin-right: 0.75rem; color: var(--accent-purple);'></i> +12489164654</li>
-                <li><i class='fas fa-envelope' style='margin-right: 0.75rem; color: var(--accent-purple);'></i> support@citybridgebank.com</li>
+                <li><i class='fas fa-envelope' style='margin-right: 0.75rem; color: var(--accent-purple);'></i> support@citibridge.net</li>
                 <li><i class='fas fa-map-marker-alt' style='margin-right: 0.75rem; color: var(--accent-purple);'></i> North Miami, FL</li>
             </ul>
             <div style='margin-top: 1.5rem;'>
@@ -92,7 +92,7 @@
     
     <!-- Footer Bottom -->
     <div class='footer-bottom'>
-        <p>&amp;copy; 2024 CITYBRIDGEBANK. All rights reserved.</p>
+        <p>&amp;copy; 2024 CITIBRIDGE. All rights reserved.</p>
         <p style='margin-top: 0.5rem; font-size: 0.9rem;'>
             Member FDIC | Equal Housing Lender | NMLS #123456
         </p>

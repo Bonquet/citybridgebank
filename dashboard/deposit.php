@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Deposit Funds Page
+// CITIBRIDGE Deposit Funds Page
 // This page allows a logged in user to deposit funds via bank deposit or crypto.
 // Title for the deposit page
 $pageTitle = 'Deposit Funds';

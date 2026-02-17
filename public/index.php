@@ -24,7 +24,7 @@ require_once '../includes/header.php';
             
             <p class="hero-subtitle">
                 Experience seamless, secure, and innovative banking solutions designed for the modern world. 
-                Join thousands of customers who trust CITYBRIDGEBANK with their financial future.
+                Join thousands of customers who trust CITIBRIDGE with their financial future.
             </p>
             
             <div class="hero-buttons">
@@ -59,7 +59,7 @@ require_once '../includes/header.php';
 <section class="section">
     <div class="container">
         <div class="section-header">
-            <h2 class="section-title">Why Choose <span class="hero-title-gradient">CITYBRIDGEBANK</span>?</h2>
+            <h2 class="section-title">Why Choose <span class="hero-title-gradient">CITIBRIDGE</span>?</h2>
             <p class="section-subtitle">Discover the features that set us apart from traditional banks</p>
         </div>
         
@@ -215,7 +215,7 @@ require_once '../includes/header.php';
                 Ready to Start Your <span class="hero-title-gradient">Banking Journey</span>?
             </h2>
             <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 2.5rem; font-size: 1.2rem;">
-                Join thousands of satisfied customers who trust CITYBRIDGEBANK with their financial future. 
+                Join thousands of satisfied customers who trust CITIBRIDGE with their financial future. 
                 Opening an account takes just a few minutes.
             </p>
             <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">

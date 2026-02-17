@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Login Processing
+// CITIBRIDGE Login Processing
 require_once 'config.php';
 
 // Check if form is submitted
@@ -129,7 +129,7 @@ try {
         redirectWithMessage('../dashboard/setup_pins.php', 'Welcome back! Please set your 4-digit Transfer PIN to continue.', 'info');
     } else {
         // Use explicit index.php instead of directory to avoid issues on some servers
-        redirectWithMessage('../dashboard/index.php', 'Welcome back to CITYBRIDGEBANK!', 'success');
+        redirectWithMessage('../dashboard/index.php', 'Welcome back to CITIBRIDGE!', 'success');
     }
     
 } catch (PDOException $e) {

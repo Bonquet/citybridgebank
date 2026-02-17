@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Deposit Processing
+// CITIBRIDGE Deposit Processing
 require_once '../includes/config.php';
 
 // Only handle POST requests

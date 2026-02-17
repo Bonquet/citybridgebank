@@ -39,7 +39,7 @@ $cards = [
 <section class="hero">
     <div class="container">
         <h1>Card Management</h1>
-        <p>Manage your CITYBRIDGEBANK debit and credit cards</p>
+        <p>Manage your CITIBRIDGE debit and credit cards</p>
     </div>
 </section>
 
@@ -60,7 +60,7 @@ $cards = [
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                                <span style="font-size: 1.5rem; font-weight: 700;">CITYBRIDGEBANK</span>
+                                <span style="font-size: 1.5rem; font-weight: 700;">CITIBRIDGE</span>
                                 <span style="background: var(--gold); color: var(--primary-blue); padding: 0.25rem 0.75rem; border-radius: var(--radius-sm); font-weight: 600;"><?php echo $card['card_type']; ?></span>
                             </div>
                             

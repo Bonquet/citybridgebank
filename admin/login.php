@@ -24,7 +24,7 @@ if (Security::isAdminLoggedIn()) {
 <section class="hero" style="background: linear-gradient(135deg, var(--dark) 0%, var(--primary-blue) 100%);">
     <div class="container">
         <h1><i class="fas fa-user-shield text-gold"></i> Admin Access</h1>
-        <p>Secure administrative access for CITYBRIDGEBANK management</p>
+        <p>Secure administrative access for CITIBRIDGE management</p>
     </div>
 </section>
 

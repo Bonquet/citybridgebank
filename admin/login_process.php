@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Admin Login Processing
+// CITIBRIDGE Admin Login Processing
 require_once '../includes/config.php';
 
 // Check if form is submitted

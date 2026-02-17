@@ -14,7 +14,7 @@ require_once '../includes/header.php';
             </span>
             
             <h1 class="hero-title">
-                About <span class="hero-title-gradient">CITYBRIDGEBANK</span>
+                About <span class="hero-title-gradient">CITIBRIDGE</span>
             </h1>
             
             <p class="hero-subtitle">
@@ -73,7 +73,7 @@ require_once '../includes/header.php';
                         Founded in 2024
                     </h3>
                     <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 1.5rem;">
-                        CITYBRIDGEBANK was born from a simple idea: banking should be easy, secure, and accessible to everyone. Our founders recognized the challenges people faced with traditional banking and set out to create a better way.
+                        CITIBRIDGE was born from a simple idea: banking should be easy, secure, and accessible to everyone. Our founders recognized the challenges people faced with traditional banking and set out to create a better way.
                     </p>
                     <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 1.5rem;">
                         Starting as a small team of passionate innovators, we've grown into a trusted financial institution serving thousands of customers across the nation. Our commitment to excellence has remained unchanged since day one.

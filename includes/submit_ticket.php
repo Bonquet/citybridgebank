@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Support Ticket Submission
+// CITIBRIDGE Support Ticket Submission
 require_once 'config.php';
 
 // Check if user is logged in

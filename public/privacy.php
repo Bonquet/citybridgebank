@@ -78,7 +78,7 @@ require_once '../includes/header.php';
                 If you have any questions about this Privacy Policy or our data practices, please contact us at:
             </p>
             <p style="color: var(--text-secondary); line-height: 1.8;">
-                <strong>Email:</strong> privacy@citybridgebank.com<br>
+                <strong>Email:</strong> privacy@citibridge.net<br>
                 <strong>Phone:</strong> +12489164654<br>
                 <strong>Address:</strong> North Miami, FL
             </p>

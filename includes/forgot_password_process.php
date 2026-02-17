@@ -1,5 +1,5 @@
 <?php
-// CITYBRIDGEBANK Password Recovery Processing
+// CITIBRIDGE Password Recovery Processing
 require_once 'config.php';
 
 // Check if form is submitted
