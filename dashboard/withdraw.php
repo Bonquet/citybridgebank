@@ -31,13 +31,13 @@ require_once '../includes/header.php';
 <div class="form-group">
   <label for="bank_search">Recipient Bank (U.S. bank search)</label>
   <input class="form-control" type="text" id="bank_search" placeholder="Search U.S. bank name (min 2 characters)">
-  <small class="text-muted">Search from FDIC institution directory. If not found, use manual entry below.</small>
+  <small class="text-muted">Loaded from FDIC institution directory. Search or scroll the full list. If not found, use manual entry below.</small>
 </div>
 <div class="form-group">
   <label for="recipient_bank">Selected/Manual Bank Name</label>
   <input class="form-control" type="text" name="recipient_bank" id="recipient_bank" placeholder="Selected bank appears here or type manually" required>
 </div>
-<div id="bank_results" class="card" style="display:none; margin-bottom:1rem;"><div class="card-body" id="bank_results_list"></div></div>
+<div id="bank_results" class="card" style="margin-bottom:1rem;"><div class="card-body"><label for="bank_scroll_list">Bank List</label><select id="bank_scroll_list" class="form-control" size="8" style="max-height:260px; overflow:auto;"></select><p id="bank_status" style="margin:.5rem 0 0 0;color:var(--text-muted)">Loading bank directory…</p></div></div>
 
 <div class="form-group"><label>Amount</label><input class="form-control" type="number" step="0.01" min="1" name="amount" required></div>
 <div class="form-group"><label>Description</label><input class="form-control" type="text" name="description" required minlength="5"></div>
@@ -111,45 +111,60 @@ document.getElementById('openPinModalBtn').addEventListener('click', function(){
 });
 document.getElementById('verifyPinBtn').addEventListener('click', verifyCurrentStage);
 
-let bankTimer = null;
 const bankSearch = document.getElementById('bank_search');
-const bankResults = document.getElementById('bank_results');
-const bankResultsList = document.getElementById('bank_results_list');
+const bankSelect = document.getElementById('bank_scroll_list');
+const bankStatus = document.getElementById('bank_status');
 const recipientBank = document.getElementById('recipient_bank');
+let allBanks = [];
 
-function renderBanks(items, message){
-  bankResults.style.display = 'block';
+function renderBankOptions(items){
+  bankSelect.innerHTML = '';
   if(!items.length){
-    bankResultsList.innerHTML = '<p style="margin:0;">' + (message || 'No matches. You can type bank name manually below.') + '</p>';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No matching banks. Use manual entry below.';
+    bankSelect.appendChild(opt);
     return;
   }
-  bankResultsList.innerHTML = items.map(b =>
-    `<button type="button" class="btn btn-outline btn-sm" style="margin:.25rem; text-align:left;" data-bank="${b.name.replace(/"/g,'&quot;')}">${b.label}</button>`
-  ).join('');
-  bankResultsList.querySelectorAll('button[data-bank]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      recipientBank.value = btn.getAttribute('data-bank');
-      bankResults.style.display = 'none';
-    });
+  items.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.name;
+    opt.textContent = b.label;
+    bankSelect.appendChild(opt);
   });
 }
 
+async function loadAllBanks(){
+  try {
+    const r = await fetch('us_banks.php?all=1');
+    const data = await r.json();
+    allBanks = data.banks || [];
+    renderBankOptions(allBanks);
+    bankStatus.textContent = allBanks.length
+      ? `Loaded ${allBanks.length} banks. Search or scroll to select one.`
+      : (data.message || 'No banks loaded. Use manual entry.');
+  } catch (e) {
+    bankStatus.textContent = 'Bank directory unavailable. Use manual entry below.';
+    renderBankOptions([]);
+  }
+}
+
 bankSearch.addEventListener('input', () => {
-  const q = bankSearch.value.trim();
-  if (bankTimer) clearTimeout(bankTimer);
-  if (q.length < 2){
-    bankResults.style.display = 'none';
+  const q = bankSearch.value.trim().toLowerCase();
+  if (!q) {
+    renderBankOptions(allBanks);
     return;
   }
-  bankTimer = setTimeout(async () => {
-    try {
-      const r = await fetch('us_banks.php?q=' + encodeURIComponent(q));
-      const data = await r.json();
-      renderBanks(data.banks || [], data.message || 'No matches. You can type bank name manually below.');
-    } catch (e) {
-      renderBanks([], 'Bank lookup unavailable. Enter bank name manually.');
-    }
-  }, 250);
+  const filtered = allBanks.filter(b => b.label.toLowerCase().includes(q) || b.name.toLowerCase().includes(q));
+  renderBankOptions(filtered);
 });
+
+bankSelect.addEventListener('change', () => {
+  if (bankSelect.value) {
+    recipientBank.value = bankSelect.value;
+  }
+});
+
+loadAllBanks();
 </script>
 <?php require_once '../includes/footer.php'; ?>
