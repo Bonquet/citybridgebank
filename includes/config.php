@@ -15,8 +15,8 @@ date_default_timezone_set('UTC');
 // Database Configuration
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'citijawp_citibridge');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_USER', 'citijawp_citibridge');
+define('DB_PASS', 'citibridge2');
 define('DB_CHARSET', 'utf8mb4');
 
 // Security Configuration

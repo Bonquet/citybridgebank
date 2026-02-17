@@ -71,7 +71,7 @@ if ($inPublic) {
 <header class="header" id="header">
     <div class="header-content">
         <a href="<?php echo $isAdmin ? $adminDashboardPath : ($isUser ? $userDashboardPath : $publicBase . 'index.php'); ?>" class="logo">
-            <div class="logo-icon"><i class="fas fa-building-columns"></i></div>
+            <div class="logo-icon"><img src="<?php echo $assetPath; ?>assets/citibridge-logo.svg" alt="CitiBridge logo"></div>
             CITIBRIDGE
         </a>
 
@@ -103,13 +103,15 @@ if ($inPublic) {
         </nav>
 
         <div class="header-actions">
+            <div class="action-buttons">
             <?php if ($isAdmin || $isUser): ?>
                 <a href="<?php echo $logoutPath; ?>" class="btn btn-secondary btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
             <?php else: ?>
                 <a href="<?php echo $publicBase; ?>login.php" class="btn btn-primary btn-sm"><i class="fas fa-sign-in-alt"></i> Login</a>
                 <a href="<?php echo $publicBase; ?>register.php" class="btn btn-gradient btn-sm">Get Started</a>
             <?php endif; ?>
-            <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
+            </div>
+            <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
         </div>
     </div>
 </header>
