@@ -1,102 +1,66 @@
 <?php
-// CITYBRIDGEBANK PIN Setup Processing
-// Simplified PIN Setup - User enters one PIN, backend creates all three PINs with same value
 require_once '../includes/config.php';
-
-// Check if user is logged in
-// If the user is not logged in, redirect to the public login page
 if (!Security::isLoggedIn()) {
-    // Use the public login page because the login form lives in the public directory
-    redirectWithMessage('../public/login.php', 'Please login to setup your PIN.', 'danger');
+    redirectWithMessage('../public/login.php', 'Please login first.', 'danger');
 }
-
-// Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirectWithMessage('index.php', 'Invalid request method.', 'danger');
+    redirectWithMessage('setup_pins.php', 'Invalid request.', 'danger');
+}
+if (!Security::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    redirectWithMessage('setup_pins.php', 'Security verification failed.', 'danger');
 }
 
-// Verify CSRF token
-if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
-    redirectWithMessage('setup_pins.php', 'Security verification failed. Please try again.', 'danger');
+$changeMode = ($_POST['change_mode'] ?? '0') === '1';
+$transferPin = trim($_POST['transfer_pin'] ?? '');
+$transferPinConfirm = trim($_POST['transfer_pin_confirm'] ?? '');
+
+if (!preg_match('/^\d{4}$/', $transferPin) || $transferPin !== $transferPinConfirm) {
+    redirectWithMessage('setup_pins.php' . ($changeMode ? '?change=1' : ''), 'Transfer PIN must be 4 digits and match confirmation.', 'danger');
 }
 
 try {
     $db = Database::getInstance()->getConnection();
-    
-    // Get existing PINs
-    $stmt = $db->prepare("SELECT pin_type FROM user_pins WHERE user_id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $existing_pins = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
-    // Validate input
-    $errors = [];
-    
-    // Authentication PIN
-    if (empty($_POST['auth_pin']) || empty($_POST['auth_pin_confirm'])) {
-        $errors[] = 'Authentication PIN is required.';
-    } elseif ($_POST['auth_pin'] !== $_POST['auth_pin_confirm']) {
-        $errors[] = 'PINs do not match.';
-    } elseif (!preg_match('/^\d{4,6}$/', $_POST['auth_pin'])) {
-        $errors[] = 'PIN must be 4-6 digits.';
-    } else {
-        $auth_pin = $_POST['auth_pin'];
-    }
-    
-    // If there are errors, redirect back
-    if (!empty($errors)) {
-        $_SESSION['pin_setup_errors'] = $errors;
-        redirectWithMessage('setup_pins.php', implode(' ', $errors), 'danger');
-    }
-    
-    // Generate random payment and secure pass pins (6 digits) and store plain values
-    $random_payment_pin = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $random_secure_pin = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-    // Begin transaction to insert pins
     $db->beginTransaction();
-    
-    // Authorization PIN
-    $pins_created = 0;
-    if (!in_array('authorization', $existing_pins)) {
-        $auth_hash = Security::hashPIN($auth_pin);
-        $stmt = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at) VALUES (?, 'authorization', ?, ?, 1, NOW())");
-        $stmt->execute([$_SESSION['user_id'], $auth_hash, $auth_pin]);
-        $pins_created++;
-        Security::logAudit('pin_created', "authorization_PIN created for user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'success');
+
+    if (!$changeMode) {
+        $pinMap = [
+            'authorization' => trim($_POST['authorization_pin'] ?? ''),
+            'payment' => trim($_POST['payment_pin'] ?? ''),
+            'secure_pass' => trim($_POST['secure_pass_pin'] ?? '')
+        ];
+
+        foreach ($pinMap as $type => $pin) {
+            if (!preg_match('/^\d{4,6}$/', $pin)) {
+                throw new RuntimeException(ucfirst(str_replace('_', ' ', $type)) . ' PIN must be 4-6 digits.');
+            }
+            $hash = Security::hashPIN($pin);
+            $stmt = $db->prepare('INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at) VALUES (?, ?, ?, NULL, 1, NOW()) ON DUPLICATE KEY UPDATE pin_hash = VALUES(pin_hash), pin_plain = NULL, is_active = 1, pin_updated_at = NOW()');
+            $stmt->execute([$_SESSION['user_id'], $type, $hash]);
+        }
     }
-    // Payment PIN
-    if (!in_array('payment', $existing_pins)) {
-        $pay_hash = Security::hashPIN($random_payment_pin);
-        $stmt = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at) VALUES (?, 'payment', ?, ?, 1, NOW())");
-        $stmt->execute([$_SESSION['user_id'], $pay_hash, $random_payment_pin]);
-        $pins_created++;
-        Security::logAudit('pin_created', "payment_PIN created for user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'success');
+
+    $transferHash = Security::hashPIN($transferPin);
+    // Persist transfer PIN hash on all user_pins rows for this user (schema compatibility).
+    $upd = $db->prepare('UPDATE user_pins SET transfer_pin_hash = ?, transfer_pin_created_at = NOW() WHERE user_id = ?');
+    $upd->execute([$transferHash, $_SESSION['user_id']]);
+
+    // If no rows existed (edge case), create authorization row to store transfer pin hash.
+    if ($upd->rowCount() === 0) {
+        $stmt = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at, transfer_pin_hash, transfer_pin_created_at) VALUES (?, 'authorization', ?, NULL, 1, NOW(), ?, NOW())");
+        $stmt->execute([$_SESSION['user_id'], Security::hashPIN('0000'), $transferHash]);
     }
-    // Secure pass PIN
-    if (!in_array('secure_pass', $existing_pins)) {
-        $sec_hash = Security::hashPIN($random_secure_pin);
-        $stmt = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at) VALUES (?, 'secure_pass', ?, ?, 1, NOW())");
-        $stmt->execute([$_SESSION['user_id'], $sec_hash, $random_secure_pin]);
-        $pins_created++;
-        Security::logAudit('pin_created', "secure_pass_PIN created for user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'success');
+
+    Security::logAudit('transfer_pin_updated', 'User updated Transfer PIN', $_SESSION['user_id']);
+    if (!$changeMode) {
+        Security::logAudit('pins_initialized', 'User initialized authentication/payment/secure pins', $_SESSION['user_id']);
     }
-    
+
     $db->commit();
-    
-    // Build message including randomly generated payment and secure pins so the user can note them down
-    if ($pins_created > 0) {
-        $msg = "Your authentication PIN has been successfully set up.";
-        $msg .= " Payment PIN: " . $random_payment_pin . ". Secure PIN: " . $random_secure_pin . ". Please store these pins securely; you will need them for every transaction.";
-        redirectWithMessage('index.php', $msg, 'success');
-    } else {
-        redirectWithMessage('index.php', 'Your PIN is already set up. You can change it in Security Settings.', 'success');
-    }
-    
-} catch (PDOException $e) {
+    redirectWithMessage('security.php', $changeMode ? 'Transfer PIN updated successfully.' : 'PIN setup completed successfully.', 'success');
+} catch (Throwable $e) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();
     }
-    error_log("PIN setup error: " . $e->getMessage());
-    redirectWithMessage('setup_pins.php', 'An error occurred setting up your PIN. Please try again.', 'danger');
+    error_log('setup_pins_process error: ' . $e->getMessage());
+    redirectWithMessage('setup_pins.php' . ($changeMode ? '?change=1' : ''), 'Unable to save PIN settings. ' . $e->getMessage(), 'danger');
 }
-?>

@@ -1,189 +1,77 @@
 <?php
-// CITYBRIDGEBANK Transfer Processing
-// Three-Layer PIN System Implementation - ALL THREE PINS REQUIRED
 require_once '../includes/config.php';
+if (!Security::isLoggedIn()) { redirectWithMessage('../public/login.php', 'Please login to make transfers.', 'danger'); }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectWithMessage('transfer.php', 'Invalid request method.', 'danger'); }
+if (!Security::verifyCSRFToken($_POST['csrf_token'] ?? '')) { redirectWithMessage('transfer.php', 'Security verification failed.', 'danger'); }
 
-// Check if user is logged in
-if (!Security::isLoggedIn()) {
-    // Redirect to public login if user is not logged in (fix broken path)
-    redirectWithMessage('../public/login.php', 'Please login to make transfers.', 'danger');
+$transferType = Security::sanitizeInput($_POST['transfer_type'] ?? '');
+$recipientAccount = Security::sanitizeInput($_POST['recipient_account'] ?? '');
+$recipientBank = Security::sanitizeInput($_POST['recipient_bank'] ?? '');
+$amount = (float)str_replace(',', '', $_POST['amount'] ?? '0');
+$description = Security::sanitizeInput($_POST['description'] ?? '');
+$transferPin = trim($_POST['transfer_pin'] ?? '');
+$authPin = trim($_POST['authorization_pin'] ?? '');
+$paymentPin = trim($_POST['payment_pin'] ?? '');
+$securePin = trim($_POST['secure_pass_pin'] ?? '');
+
+if (!in_array($transferType, ['internal','external','wire'], true) || strlen($recipientAccount) < 6 || $amount < MIN_TRANSFER_AMOUNT || strlen($description) < 5) {
+    redirectWithMessage('transfer.php', 'Please review transfer details.', 'danger');
 }
-
-// Check if form is submitted
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirectWithMessage('transfer.php', 'Invalid request method.', 'danger');
-}
-
-// Verify CSRF token
-if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
-    redirectWithMessage('transfer.php', 'Security verification failed. Please try again.', 'danger');
+if (!preg_match('/^\d{4}$/', $transferPin) || !preg_match('/^\d{4,6}$/', $authPin) || !preg_match('/^\d{4,6}$/', $paymentPin) || !preg_match('/^\d{4,6}$/', $securePin)) {
+    redirectWithMessage('transfer.php', 'PIN verification failed. Please try again.', 'danger');
 }
 
 try {
     $db = Database::getInstance()->getConnection();
-    
-    // Get user information
-    $stmt = $db->prepare("SELECT user_id, account_balance, account_status FROM users WHERE user_id = ?");
+    $stmt = $db->prepare('SELECT account_balance, account_status FROM users WHERE user_id = ? FOR UPDATE');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
-    
-    if (!$user || $user['account_status'] !== 'active') {
-        redirectWithMessage('index.php', 'Your account is not active.', 'danger');
+    if (!$user || $user['account_status'] !== 'active') { redirectWithMessage('index.php', 'Your account is not active.', 'danger'); }
+
+    $pinStmt = $db->prepare('SELECT pin_type, pin_hash, is_active, transfer_pin_hash FROM user_pins WHERE user_id = ?');
+    $pinStmt->execute([$_SESSION['user_id']]);
+    $pins = $pinStmt->fetchAll();
+    $pinMap = [];
+    $transferHash = null;
+    foreach ($pins as $p) {
+        $pinMap[$p['pin_type']] = $p;
+        if (!$transferHash && !empty($p['transfer_pin_hash'])) { $transferHash = $p['transfer_pin_hash']; }
     }
-    
-    // Validate transfer details
-    $transfer_type = Security::sanitizeInput($_POST['transfer_type']);
-    $recipient_account = Security::sanitizeInput($_POST['recipient_account']);
-    // Optional recipient bank for external/wire transfers
-    $recipient_bank = isset($_POST['recipient_bank']) ? Security::sanitizeInput($_POST['recipient_bank']) : '';
-    // Remove commas from amount before converting to float (handles formatted inputs like "1,000")
-    $raw_amount = str_replace(',', '', $_POST['amount']);
-    $amount = floatval($raw_amount);
-    $description = Security::sanitizeInput($_POST['description']);
-    
-    // Validation errors
-    $errors = [];
-    
-    if (empty($transfer_type) || !in_array($transfer_type, ['internal', 'external', 'wire'])) {
-        $errors[] = 'Invalid transfer type.';
+
+    if (!$transferHash || !Security::verifyPIN($transferPin, $transferHash)) {
+        redirectWithMessage('transfer.php', 'Invalid Transfer PIN.', 'danger');
     }
-    
-    if (empty($recipient_account) || strlen($recipient_account) < 10) {
-        $errors[] = 'Invalid recipient account number.';
+    foreach (['authorization' => $authPin, 'payment' => $paymentPin, 'secure_pass' => $securePin] as $type => $entered) {
+        if (empty($pinMap[$type]) || (int)$pinMap[$type]['is_active'] !== 1) {
+            redirectWithMessage('transfer.php', ucfirst(str_replace('_', ' ', $type)) . ' PIN stage is disabled by admin support.', 'danger');
+        }
+        if (!Security::verifyPIN($entered, $pinMap[$type]['pin_hash'])) {
+            redirectWithMessage('transfer.php', 'Invalid ' . ucfirst(str_replace('_', ' ', $type)) . ' PIN.', 'danger');
+        }
     }
-    
-    if ($amount < MIN_TRANSFER_AMOUNT) {
-        $errors[] = "Minimum transfer amount is $" . number_format(MIN_TRANSFER_AMOUNT, 2) . ".";
+
+    $fee = $transferType === 'wire' ? 25.00 : ($transferType === 'external' ? (($amount * 0.01) + 2.00) : 0.00);
+    $total = $amount + $fee;
+    if ($total > (float)$user['account_balance'] || $total > MAX_SINGLE_TRANSFER) {
+        redirectWithMessage('transfer.php', 'Insufficient funds or transfer exceeds limits.', 'danger');
     }
-    
-    if ($amount > MAX_SINGLE_TRANSFER) {
-        $errors[] = "Maximum single transfer is $" . number_format(MAX_SINGLE_TRANSFER, 2) . ".";
-    }
-    
-    if ($amount > $user['account_balance']) {
-        $errors[] = 'Insufficient funds for this transfer.';
-    }
-    
-    if (empty($description) || strlen($description) < 5) {
-        $errors[] = 'Description must be at least 5 characters.';
-    }
-    
-    // CRITICAL: Validate all three PINs
-    // Authorization PIN may come from the field named authorization_pin (new) or auth_pin (legacy)
-    $auth_pin = $_POST['authorization_pin'] ?? ($_POST['auth_pin'] ?? '');
-    // Payment and secure pass pins may come from hidden fields or user input
-    $payment_pin = $_POST['payment_pin'] ?? '';
-    $secure_pass_pin = $_POST['secure_pass_pin'] ?? '';
-    
-    if (empty($auth_pin) || empty($payment_pin) || empty($secure_pass_pin)) {
-        $errors[] = 'All three PINs (Authorization, Payment, Secure Pass) are required to complete any transaction.';
-    }
-    
-    if (!empty($errors)) {
-        Security::logAudit('transfer_failed', "Transfer validation failed for user {$_SESSION['username']}: " . implode('; ', $errors), $_SESSION['user_id']);
-        redirectWithMessage('transfer.php', implode(' ', $errors), 'danger');
-    }
-    
-    // VALIDATE ALL THREE PINS - ALL MUST BE CORRECT
-    $stmt = $db->prepare("SELECT pin_type, pin_hash FROM user_pins WHERE user_id = ? AND is_active = 1");
-    $stmt->execute([$_SESSION['user_id']]);
-    $stored_pins = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-    
-    // Check if all three PINs are set
-    if (count($stored_pins) < 3) {
-        Security::logAudit('transfer_failed', "Incomplete PIN setup for user {$_SESSION['username']}", $_SESSION['user_id']);
-        redirectWithMessage('setup_pins.php', 'Please complete your three-layer PIN setup before making transfers.', 'warning');
-    }
-    
-    // Validate Authorization PIN
-    if (!isset($stored_pins['authorization']) || !Security::verifyPIN($auth_pin, $stored_pins['authorization'])) {
-        Security::logAudit('pin_validation_failed', "Invalid Authorization PIN for user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'failure');
-        redirectWithMessage('transfer.php', 'Invalid Authorization PIN. Transaction aborted for your security.', 'danger');
-    }
-    
-    // Validate Payment PIN
-    if (!isset($stored_pins['payment']) || !Security::verifyPIN($payment_pin, $stored_pins['payment'])) {
-        Security::logAudit('pin_validation_failed', "Invalid Payment PIN for user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'failure');
-        redirectWithMessage('transfer.php', 'Invalid Payment PIN. Transaction aborted for your security.', 'danger');
-    }
-    
-    // Validate Secure Pass PIN
-    if (!isset($stored_pins['secure_pass']) || !Security::verifyPIN($secure_pass_pin, $stored_pins['secure_pass'])) {
-        Security::logAudit('pin_validation_failed', "Invalid Secure Pass PIN for user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'failure');
-        redirectWithMessage('transfer.php', 'Invalid Secure Pass PIN. Transaction aborted for your security.', 'danger');
-    }
-    
-    // Calculate fee based on transfer type
-    $fee = 0.00;
-    switch ($transfer_type) {
-        case 'internal':
-            $fee = 0.00;
-            break;
-        case 'external':
-            $fee = ($amount * 0.01) + 2.00; // 1% + $2
-            break;
-        case 'wire':
-            $fee = 25.00;
-            break;
-    }
-    
-    $total_amount = $amount + $fee;
-    
-    // Check final balance including fee
-    if ($total_amount > $user['account_balance']) {
-        Security::logAudit('transfer_failed', "Insufficient funds including fee for user {$_SESSION['username']}", $_SESSION['user_id']);
-        redirectWithMessage('transfer.php', 'Insufficient funds including transaction fee.', 'danger');
-    }
-    
-    // CRITICAL: ALL THREE PINS VALIDATED - PROCESS TRANSACTION
+
     $db->beginTransaction();
-    
-    // Generate reference number
-    $reference_number = Security::generateReferenceNumber();
-    
-    // Update sender balance
-    $new_balance = $user['account_balance'] - $total_amount;
-    $stmt = $db->prepare("UPDATE users SET account_balance = ? WHERE user_id = ?");
-    $stmt->execute([$new_balance, $_SESSION['user_id']]);
-    
-    // Record transaction with ALL THREE PINS marked as used
-    $stmt = $db->prepare("INSERT INTO transactions 
-        (user_id, transaction_type, amount, description, reference_number, status, balance_after, 
-         authorization_pin_used, payment_pin_used, secure_pass_used, transaction_date) 
-        VALUES (?, 'debit', ?, ?, ?, 'completed', ?, 1, 1, 1, NOW())");
-    $stmt->execute([
-        $_SESSION['user_id'],
-        $total_amount,
-        // Append bank name to recipient info for external and wire transfers
-        "{$description} ({$transfer_type} transfer to " . (!empty($recipient_bank) ? ($recipient_account . ' @ ' . $recipient_bank) : $recipient_account) . ")",
-        $reference_number,
-        $new_balance
-    ]);
-    
-    // Update PIN last used timestamps
-    $stmt = $db->prepare("UPDATE user_pins SET last_used = NOW() WHERE user_id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    
-    // Log all three PIN usages
-    Security::logAudit('pin_validated', "Authorization PIN used for transaction {$reference_number} by user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'success');
-    Security::logAudit('pin_validated', "Payment PIN used for transaction {$reference_number} by user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'success');
-    Security::logAudit('pin_validated', "Secure Pass PIN used for transaction {$reference_number} by user {$_SESSION['username']}", $_SESSION['user_id'], null, null, null, 'success');
-    
-    // Log successful transfer
-    Security::logAudit('transfer_completed', "Transfer of {$total_amount} ({$transfer_type}) completed by user {$_SESSION['username']} to {$recipient_account}", $_SESSION['user_id']);
-    
+    $newBalance = (float)$user['account_balance'] - $total;
+    $ref = Security::generateReferenceNumber();
+
+    $upd = $db->prepare('UPDATE users SET account_balance = ? WHERE user_id = ?');
+    $upd->execute([$newBalance, $_SESSION['user_id']]);
+
+    $ins = $db->prepare("INSERT INTO transactions (user_id, transaction_type, amount, description, reference_number, status, balance_after, authorization_pin_used, payment_pin_used, secure_pass_used, transaction_date) VALUES (?, 'debit', ?, ?, ?, 'completed', ?, 1, 1, 1, NOW())");
+    $ins->execute([$_SESSION['user_id'], $total, $description . ' (' . $transferType . ' transfer to ' . $recipientAccount . ($recipientBank ? (' @ ' . $recipientBank) : '') . ')', $ref, $newBalance]);
+
     $db->commit();
-    
-    // Success message with confirmation
-    $message = "Transfer completed successfully! Reference: {$reference_number}. Amount: $" . number_format($total_amount, 2) . " (including $" . number_format($fee, 2) . " fee).";
-    redirectWithMessage('transactions.php', $message, 'success');
-    
-} catch (PDOException $e) {
-    if (isset($db) && $db->inTransaction()) {
-        $db->rollBack();
-    }
-    error_log("Transfer processing error: " . $e->getMessage());
-    Security::logAudit('transfer_error', "Transfer processing error for user {$_SESSION['username']}: {$e->getMessage()}", $_SESSION['user_id']);
-    redirectWithMessage('transfer.php', 'An error occurred processing your transfer. Please try again.', 'danger');
+    $_SESSION['pin_attempts'] = 0;
+    Security::logAudit('transfer_completed', 'Transfer completed. Ref ' . $ref, $_SESSION['user_id']);
+    redirectWithMessage('transactions.php', 'Transfer completed successfully. Reference: ' . $ref, 'success');
+} catch (Throwable $e) {
+    if (isset($db) && $db->inTransaction()) { $db->rollBack(); }
+    error_log('transfer_process error: ' . $e->getMessage());
+    redirectWithMessage('transfer.php', 'An error occurred while processing your transfer.', 'danger');
 }
-?>

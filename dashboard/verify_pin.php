@@ -1,118 +1,82 @@
 <?php
-// AJAX endpoint to verify individual PIN steps during withdrawal
-// This script validates a single PIN (authorization, payment, or secure_pass)
-// and returns a JSON response indicating success or failure. It increments
-// the session-based PIN attempt counter on failures and logs all
-// validation attempts to the audit trail.
-
 require_once '../includes/config.php';
-
-// Return JSON responses
 header('Content-Type: application/json');
 
-// Ensure user is logged in
 if (!Security::isLoggedIn()) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'You must be logged in to verify PINs.'
-    ]);
+    echo json_encode(['success' => false, 'message' => 'You must be logged in.']);
     exit;
 }
-
-// Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Invalid request method.'
-    ]);
+    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
     exit;
 }
 
-// Sanitize and validate inputs
-$step = $_POST['step'] ?? '';
-$pin  = $_POST['pin'] ?? '';
-
-// Map step to pin_type
-$validSteps = [
-    'authorization' => 'authorization',
-    'payment'       => 'payment',
-    'secure_pass'   => 'secure_pass'
-];
-
-if (!array_key_exists($step, $validSteps)) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Invalid PIN type requested.'
-    ]);
+$type = Security::sanitizeInput($_POST['type'] ?? '');
+$pin = trim($_POST['pin'] ?? '');
+$allowed = ['transfer', 'authorization', 'payment', 'secure_pass'];
+if (!in_array($type, $allowed, true)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid PIN type.']);
     exit;
 }
 
-// Enforce basic PIN format (4 to 6 digits)
-if (!preg_match('/^\d{4,6}$/', $pin)) {
-    echo json_encode([
-        'success' => false,
-        'message' => ucfirst($step) . ' PIN must be 4-6 digits.'
-    ]);
+$pattern = $type === 'transfer' ? '/^\d{4}$/' : '/^\d{4,6}$/';
+if (!preg_match($pattern, $pin)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid PIN format.']);
     exit;
 }
 
-// Rate limiting: check PIN attempts stored in session
-if (!isset($_SESSION['pin_attempts'])) {
-    $_SESSION['pin_attempts'] = 0;
-}
+$_SESSION['pin_attempts'] = $_SESSION['pin_attempts'] ?? 0;
 if ($_SESSION['pin_attempts'] >= MAX_PIN_ATTEMPTS) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Too many incorrect PIN attempts. Please wait before trying again.'
-    ]);
+    echo json_encode(['success' => false, 'message' => 'Too many incorrect PIN attempts.']);
     exit;
 }
 
 try {
     $db = Database::getInstance()->getConnection();
-    // Fetch the stored hash for the requested PIN type
-    $stmt = $db->prepare("SELECT pin_hash, is_active FROM user_pins WHERE user_id = ? AND pin_type = ?");
-    $stmt->execute([$_SESSION['user_id'], $validSteps[$step]]);
+
+    if ($type === 'transfer') {
+        $stmt = $db->prepare('SELECT transfer_pin_hash FROM user_pins WHERE user_id = ? AND transfer_pin_hash IS NOT NULL LIMIT 1');
+        $stmt->execute([$_SESSION['user_id']]);
+        $hash = $stmt->fetchColumn();
+        if (!$hash) {
+            echo json_encode(['success' => false, 'message' => 'Transfer PIN not set. Please set it in Security settings.', 'requires_setup' => true]);
+            exit;
+        }
+
+        if (!Security::verifyPIN($pin, $hash)) {
+            $_SESSION['pin_attempts']++;
+            Security::logAudit('pin_validation_failed', 'Invalid transfer PIN', $_SESSION['user_id'], null, null, 'transfer', 'failure');
+            echo json_encode(['success' => false, 'message' => 'Invalid Transfer PIN.']);
+            exit;
+        }
+
+        Security::logAudit('pin_validated', 'Transfer PIN validated', $_SESSION['user_id'], null, null, 'transfer', 'success');
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
+    $stmt = $db->prepare('SELECT pin_hash, is_active FROM user_pins WHERE user_id = ? AND pin_type = ? LIMIT 1');
+    $stmt->execute([$_SESSION['user_id'], $type]);
     $row = $stmt->fetch();
-
-    // If no PIN found or it is inactive, block verification
-    if (!$row || !$row['is_active']) {
-        echo json_encode([
-            'success' => false,
-            'message' => ucfirst($step) . ' PIN is not active. Please contact support.'
-        ]);
+    if (!$row) {
+        echo json_encode(['success' => false, 'message' => ucfirst($type) . ' PIN not configured.']);
+        exit;
+    }
+    if ((int)$row['is_active'] !== 1) {
+        echo json_encode(['success' => false, 'message' => ucfirst(str_replace('_',' ', $type)) . ' PIN stage is currently disabled by admin support.']);
         exit;
     }
 
-    // Verify the provided PIN against the stored hash
     if (!Security::verifyPIN($pin, $row['pin_hash'])) {
-        // Increment failed attempts
         $_SESSION['pin_attempts']++;
-        // Log audit
-        Security::logAudit('pin_validation_failed', 'Invalid ' . $validSteps[$step] . ' PIN via AJAX', $_SESSION['user_id'], null, null, $validSteps[$step], 'failure');
-        echo json_encode([
-            'success' => false,
-            'message' => 'Invalid ' . ucfirst($step) . ' PIN.'
-        ]);
+        Security::logAudit('pin_validation_failed', "Invalid {$type} PIN", $_SESSION['user_id'], null, null, $type, 'failure');
+        echo json_encode(['success' => false, 'message' => 'Invalid PIN.']);
         exit;
     }
 
-    // PIN is correct. Reset attempts on success?
-    // Do not reset here so user still must complete all steps; only reset after final submission
-    // Update last_used timestamp
-    $upd = $db->prepare("UPDATE user_pins SET last_used = NOW() WHERE user_id = ? AND pin_type = ?");
-    $upd->execute([$_SESSION['user_id'], $validSteps[$step]]);
-
-    // Log successful validation
-    Security::logAudit('pin_validated', ucfirst($validSteps[$step]) . ' PIN validated via AJAX', $_SESSION['user_id'], null, null, $validSteps[$step], 'success');
-    echo json_encode([
-        'success' => true
-    ]);
-} catch (PDOException $e) {
-    error_log('PIN verification error: ' . $e->getMessage());
-    echo json_encode([
-        'success' => false,
-        'message' => 'An error occurred during PIN verification.'
-    ]);
+    Security::logAudit('pin_validated', ucfirst($type) . ' PIN validated', $_SESSION['user_id'], null, null, $type, 'success');
+    echo json_encode(['success' => true]);
+} catch (Throwable $e) {
+    error_log('verify_pin error: ' . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Verification failed.']);
 }
-?>

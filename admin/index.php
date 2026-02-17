@@ -1,14 +1,10 @@
 <?php
 $pageTitle = 'Admin Dashboard';
- // Load configuration first (defines Database, Security, helper functions)
- require_once '../includes/config.php';
- // Then render header (includes navigation and CSS)
- require_once '../includes/header.php';
-
-// Check if admin is logged in
+require_once '../includes/config.php';
 if (!Security::isAdminLoggedIn()) {
     redirectWithMessage('login.php', 'Please login to access the admin panel.', 'danger');
 }
+require_once '../includes/header.php';
 
 try {
     $db = Database::getInstance()->getConnection();

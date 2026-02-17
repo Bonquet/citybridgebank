@@ -2,9 +2,7 @@
 // CITYBRIDGEBANK Registration Processing
 require_once 'config.php';
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Runtime error display is controlled centrally in includes/config.php.
 
 // Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -162,7 +160,7 @@ try {
     
     // Insert new user with full address details and additional fields
     $stmt = $db->prepare("INSERT INTO users (username, email, password_hash, full_name, phone, address, city, state, zip, ssn, date_of_birth, account_number, account_type, kyc_status, account_status, account_balance) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'active', 0.00)");
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'none', 'active', 0.00)");
     
     $stmt->execute([
         $username,

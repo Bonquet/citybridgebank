@@ -1,216 +1,116 @@
 <?php
-// Manage a user's three-layer PINs (Authorization, Payment, Secure Pass)
-// This script allows an admin to view and update a user's PINs. It processes
-// form submissions before any HTML is sent to the browser to avoid headers
-// already sent errors. It logs all updates and status changes for audit.
-
 require_once '../includes/config.php';
-
-// Ensure admin is logged in
 if (!Security::isAdminLoggedIn()) {
-    redirectWithMessage('login.php', 'Please login to manage user PINs.', 'danger');
+    redirectWithMessage('login.php', 'Please login to manage PINs.', 'danger');
 }
-
-// Validate user_id parameter
-if (!isset($_GET['user_id']) || !is_numeric($_GET['user_id'])) {
-    redirectWithMessage('user_pins.php', 'No user selected for PIN management.', 'danger');
+$userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : (int)($_POST['user_id'] ?? 0);
+if ($userId <= 0) {
+    redirectWithMessage('users.php', 'Invalid user selected.', 'danger');
 }
-$user_id = (int)$_GET['user_id'];
+$db = Database::getInstance()->getConnection();
 
-try {
-    $db = Database::getInstance()->getConnection();
-
-    // Handle form submission (POST) before output
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Verify CSRF token
-        if (!isset($_POST['csrf_token']) || !Security::verifyCSRFToken($_POST['csrf_token'])) {
-            redirectWithMessage("manage_pins.php?user_id={$user_id}", 'Security verification failed. Please try again.', 'danger');
-        }
-        // Confirm hidden user_id matches expected ID
-        $form_user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : $user_id;
-        if ($form_user_id !== $user_id) {
-            redirectWithMessage("manage_pins.php?user_id={$user_id}", 'Invalid user ID.', 'danger');
-        }
-        // Begin transaction for atomic updates
-        $db->beginTransaction();
-        // Helper to create or update a PIN value
-        $updateOrInsertPin = function($type, $newPlain) use ($db, $user_id) {
-            $newHash = Security::hashPIN($newPlain);
-            // Check if pin exists
-            $stmt = $db->prepare("SELECT pin_id FROM user_pins WHERE user_id = ? AND pin_type = ?");
-            $stmt->execute([$user_id, $type]);
-            $existing = $stmt->fetchColumn();
-            if ($existing) {
-                $stmt = $db->prepare("UPDATE user_pins SET pin_hash = ?, pin_plain = ?, is_active = 1, pin_created_at = NOW(), last_used = NULL WHERE pin_id = ?");
-                $stmt->execute([$newHash, $newPlain, $existing]);
-            } else {
-                $stmt = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at) VALUES (?, ?, ?, ?, 1, NOW())");
-                $stmt->execute([$user_id, $type, $newHash, $newPlain]);
-            }
-            // Log audit and admin action
-            $adminId = $_SESSION['admin_id'] ?? null;
-            Security::logAudit('pin_updated', "$type PIN updated for user ID {$user_id}", $user_id, $adminId, null, $type, 'success');
-            Security::logAdminAction($adminId, 'pin_updated', ucfirst($type) . ' PIN updated', $user_id);
-        };
-        // Gather new PINs from the form
-        $authPin    = isset($_POST['authorization_pin']) ? trim($_POST['authorization_pin']) : '';
-        $paymentPin = isset($_POST['payment_pin']) ? trim($_POST['payment_pin']) : '';
-        $securePin  = isset($_POST['secure_pass_pin']) ? trim($_POST['secure_pass_pin']) : '';
-        $errors = [];
-        if ($authPin !== '') {
-            if (!preg_match('/^\d{4,6}$/', $authPin)) {
-                $errors[] = 'Authorization PIN must be 4-6 digits.';
-            } else {
-                $updateOrInsertPin('authorization', $authPin);
-            }
-        }
-        if ($paymentPin !== '') {
-            if (!preg_match('/^\d{4,6}$/', $paymentPin)) {
-                $errors[] = 'Payment PIN must be 4-6 digits.';
-            } else {
-                $updateOrInsertPin('payment', $paymentPin);
-            }
-        }
-        if ($securePin !== '') {
-            if (!preg_match('/^\d{4,6}$/', $securePin)) {
-                $errors[] = 'Secure Pass PIN must be 4-6 digits.';
-            } else {
-                $updateOrInsertPin('secure_pass', $securePin);
-            }
-        }
-        if (!empty($errors)) {
-            $_SESSION['pin_update_errors'] = $errors;
-            $db->rollBack();
-            redirectWithMessage("manage_pins.php?user_id={$user_id}", implode(' ', $errors), 'danger');
-        }
-        // Determine active status from checkboxes
-        $authActive    = isset($_POST['authorization_active']) ? 1 : 0;
-        $paymentActive = isset($_POST['payment_active']) ? 1 : 0;
-        $secureActive  = isset($_POST['secure_pass_active']) ? 1 : 0;
-        // Helper to update active status and log changes
-        $updateStatus = function($type, $active) use ($db, $user_id) {
-            $stmt = $db->prepare("SELECT pin_id, is_active FROM user_pins WHERE user_id = ? AND pin_type = ?");
-            $stmt->execute([$user_id, $type]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row && (int)$row['is_active'] !== (int)$active) {
-                $stmt = $db->prepare("UPDATE user_pins SET is_active = ? WHERE pin_id = ?");
-                $stmt->execute([$active, $row['pin_id']]);
-                $adminId = $_SESSION['admin_id'] ?? null;
-                $action  = $active ? 'enabled' : 'disabled';
-                Security::logAudit('pin_status_change', "{$type} PIN {$action} for user {$user_id}", $user_id, $adminId, null, $type, 'success');
-                Security::logAdminAction($adminId, 'pin_status_change', ucfirst($type) . " PIN {$action}", $user_id);
-            }
-        };
-        // Apply active status updates
-        $updateStatus('authorization', $authActive);
-        $updateStatus('payment', $paymentActive);
-        $updateStatus('secure_pass', $secureActive);
-        // Commit transaction and redirect
-        $db->commit();
-        redirectWithMessage('user_pins.php', 'User PINs updated successfully.', 'success');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!Security::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        redirectWithMessage('manage_pins.php?user_id=' . $userId, 'Security verification failed.', 'danger');
     }
 
-    // GET request: fetch user and pin details for display
-    $stmt = $db->prepare("SELECT username, full_name, email FROM users WHERE user_id = ?");
-    $stmt->execute([$user_id]);
-    $user = $stmt->fetch();
-    if (!$user) {
-        redirectWithMessage('user_pins.php', 'User not found.', 'danger');
-    }
-    $stmt = $db->prepare("SELECT pin_type, pin_plain, is_active FROM user_pins WHERE user_id = ?");
-    $stmt->execute([$user_id]);
-    $pins = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $pins[$row['pin_type']] = $row;
-    }
-    // Generate CSRF token for the form
-    $csrf_token = Security::generateCSRFToken();
+    $action = $_POST['action'] ?? '';
+    $pinType = $_POST['pin_type'] ?? '';
+    $reason = Security::sanitizeInput($_POST['reason'] ?? '');
 
-} catch (PDOException $e) {
-    error_log('Manage PINs error: ' . $e->getMessage());
-    redirectWithMessage('user_pins.php', 'An error occurred loading user PIN data.', 'danger');
+    if ($action === 'toggle' && in_array($pinType, ['authorization', 'payment', 'secure_pass'], true)) {
+        $active = isset($_POST['is_active']) ? 1 : 0;
+        $stmt = $db->prepare('UPDATE user_pins SET is_active = ? WHERE user_id = ? AND pin_type = ?');
+        $stmt->execute([$active, $userId, $pinType]);
+        Security::logAudit('pin_stage_toggled', 'Admin changed pin stage availability: ' . $pinType . ' => ' . $active, $userId, $_SESSION['admin_id'], null, $pinType);
+        Security::logAdminAction($_SESSION['admin_id'], 'pin_stage_toggled', 'Changed ' . $pinType . ' stage to ' . $active, $userId);
+        redirectWithMessage('manage_pins.php?user_id=' . $userId, 'PIN stage updated.', 'success');
+    }
+
+    if ($action === 'reset' && in_array($pinType, ['authorization', 'payment', 'secure_pass', 'transfer'], true)) {
+        if ($reason === '') {
+            redirectWithMessage('manage_pins.php?user_id=' . $userId, 'Reason is required for PIN reset.', 'danger');
+        }
+
+        $newPin = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        $hash = Security::hashPIN($newPin);
+
+        if ($pinType === 'transfer') {
+            $upd = $db->prepare('UPDATE user_pins SET transfer_pin_hash = ?, transfer_pin_created_at = NOW() WHERE user_id = ?');
+            $upd->execute([$hash, $userId]);
+            if ($upd->rowCount() === 0) {
+                $ins = $db->prepare("INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at, transfer_pin_hash, transfer_pin_created_at) VALUES (?, 'authorization', ?, NULL, 1, NOW(), ?, NOW())");
+                $ins->execute([$userId, Security::hashPIN('0000'), $hash]);
+            }
+        } else {
+            $stmt = $db->prepare('INSERT INTO user_pins (user_id, pin_type, pin_hash, pin_plain, is_active, pin_created_at) VALUES (?, ?, ?, NULL, 1, NOW()) ON DUPLICATE KEY UPDATE pin_hash = VALUES(pin_hash), pin_plain = NULL, is_active = 1, pin_updated_at = NOW()');
+            $stmt->execute([$userId, $pinType, $hash]);
+        }
+
+        // Keep plain PIN out of UI; record only hashed operation metadata.
+        Security::logAudit('pin_reset', 'Admin reset ' . $pinType . ' PIN. Reason: ' . $reason, $userId, $_SESSION['admin_id'], null, $pinType);
+        Security::logAdminAction($_SESSION['admin_id'], 'pin_reset', 'Reset ' . $pinType . ' PIN with reason: ' . $reason, $userId);
+
+        $k = $db->prepare("INSERT INTO kyc_logs (user_id, admin_id, action, reason) VALUES (?, ?, 'request_reupload', ?)");
+        $k->execute([$userId, $_SESSION['admin_id'], 'PIN reset (' . $pinType . '), reason: ' . $reason]);
+
+        // Force user to set new transfer pin on next use by tracking banner flag.
+        if ($pinType === 'transfer') {
+            $db->prepare('UPDATE users SET kyc_review_reason = CONCAT(IFNULL(kyc_review_reason, ""), "\nTransfer PIN was reset by support. Please set a new Transfer PIN.") WHERE user_id = ?')->execute([$userId]);
+        }
+
+        redirectWithMessage('manage_pins.php?user_id=' . $userId, 'PIN reset completed. Value remains hidden by policy.', 'success');
+    }
 }
 
-// Include the header after processing; this sends HTML output
+$userStmt = $db->prepare('SELECT user_id, full_name, username, email FROM users WHERE user_id = ?');
+$userStmt->execute([$userId]);
+$user = $userStmt->fetch();
+if (!$user) {
+    redirectWithMessage('users.php', 'User not found.', 'danger');
+}
+
+$pinStmt = $db->prepare('SELECT pin_type, is_active, transfer_pin_hash FROM user_pins WHERE user_id = ?');
+$pinStmt->execute([$userId]);
+$rows = $pinStmt->fetchAll();
+$pins = ['authorization' => ['set'=>false,'active'=>false], 'payment' => ['set'=>false,'active'=>false], 'secure_pass' => ['set'=>false,'active'=>false], 'transfer' => ['set'=>false,'active'=>true]];
+foreach ($rows as $r) {
+    if (isset($pins[$r['pin_type']])) {
+        $pins[$r['pin_type']]['set'] = true;
+        $pins[$r['pin_type']]['active'] = (int)$r['is_active'] === 1;
+    }
+    if (!empty($r['transfer_pin_hash'])) {
+        $pins['transfer']['set'] = true;
+    }
+}
+$csrf = Security::generateCSRFToken();
 require_once '../includes/header.php';
 ?>
+<section style="padding:2rem 0;"><div class="container">
+<h1>Manage PINs: <?php echo htmlspecialchars($user['full_name']); ?></h1>
+<p><?php echo htmlspecialchars($user['username']); ?> (<?php echo htmlspecialchars($user['email']); ?>)</p>
 
-<!-- Page Header -->
-<section style="background: linear-gradient(135deg, var(--dark) 0%, var(--primary-blue) 100%); color: var(--white); padding: 2rem 0;">
-    <div class="container">
-        <h1><i class="fas fa-user-lock text-gold"></i> Manage PINs for <?php echo htmlspecialchars($user['full_name']); ?></h1>
-        <p>View and update the user's authentication, payment, and secure pass PINs</p>
-    </div>
-</section>
+<div class="card"><div class="card-body">
+<?php foreach (['authorization','payment','secure_pass','transfer'] as $t): ?>
+  <div style="border-bottom:1px solid rgba(255,255,255,.1);padding:1rem 0;">
+    <h3 style="margin:0 0 .5rem 0;"><?php echo ucfirst(str_replace('_',' ', $t)); ?> PIN</h3>
+    <p>Status: <?php echo $pins[$t]['set'] ? 'Set (••••)' : 'Not set'; ?></p>
 
-<!-- Manage PIN Form -->
-<section style="padding: 2rem 0;">
-    <div class="container">
-        <?php
-        // Display errors stored in the session
-        if (isset($_SESSION['pin_update_errors'])) {
-            echo '<div class="danger-box" style="margin-bottom: 1rem;">' . implode('<br>', $_SESSION['pin_update_errors']) . '</div>';
-            unset($_SESSION['pin_update_errors']);
-        }
-        ?>
-        <div class="glass-card">
-            <h2 style="margin-bottom: 1.5rem; color: var(--accent-blue);">
-                <i class="fas fa-key" style="color: var(--accent-gold); margin-right: 0.5rem;"></i> Update User PINs
-            </h2>
-            <form action="" method="POST">
-                <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
-                <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
-                <div class="form-group">
-                    <label for="authorization_pin">Authorization PIN</label>
-                    <input type="password" id="authorization_pin" name="authorization_pin" class="form-control" placeholder="<?php echo isset($pins['authorization']['pin_plain']) ? $pins['authorization']['pin_plain'] : 'Not Set'; ?>" maxlength="6" autocomplete="off">
-                    <div class="form-check" style="margin-top: 0.5rem;">
-                        <input type="checkbox" id="authorization_active" name="authorization_active" class="form-check-input" <?php echo (isset($pins['authorization']) && (int)$pins['authorization']['is_active'] === 1) ? 'checked' : ''; ?>>
-                        <label for="authorization_active" class="form-check-label">Enabled</label>
-                    </div>
-                    <small class="text-muted">Leave blank to keep the current PIN. Current: <?php echo isset($pins['authorization']['pin_plain']) ? $pins['authorization']['pin_plain'] : 'Not Set'; ?>; Status: <?php echo (isset($pins['authorization']) && (int)$pins['authorization']['is_active'] === 1) ? 'Enabled' : 'Disabled'; ?></small>
-                </div>
+    <?php if ($t !== 'transfer'): ?>
+      <form method="POST" style="display:flex;gap:.5rem;align-items:end;flex-wrap:wrap;margin-bottom:.5rem;">
+        <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>"><input type="hidden" name="user_id" value="<?php echo (int)$userId; ?>"><input type="hidden" name="action" value="toggle"><input type="hidden" name="pin_type" value="<?php echo $t; ?>">
+        <label><input type="checkbox" name="is_active" <?php echo $pins[$t]['active'] ? 'checked' : ''; ?>> Stage Enabled</label>
+        <button class="btn btn-secondary btn-sm" type="submit">Save Stage Status</button>
+      </form>
+    <?php endif; ?>
 
-                <div class="form-group">
-                    <label for="payment_pin">Payment PIN</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="password" id="payment_pin" name="payment_pin" class="form-control" placeholder="<?php echo isset($pins['payment']['pin_plain']) ? $pins['payment']['pin_plain'] : 'Not Set'; ?>" maxlength="6" autocomplete="off">
-                        <button type="button" class="btn btn-secondary" onclick="generateRandom('payment_pin')">Random</button>
-                    </div>
-                    <div class="form-check" style="margin-top: 0.5rem;">
-                        <input type="checkbox" id="payment_active" name="payment_active" class="form-check-input" <?php echo (isset($pins['payment']) && (int)$pins['payment']['is_active'] === 1) ? 'checked' : ''; ?>>
-                        <label for="payment_active" class="form-check-label">Enabled</label>
-                    </div>
-                    <small class="text-muted">Leave blank to keep the current PIN. Current: <?php echo isset($pins['payment']['pin_plain']) ? $pins['payment']['pin_plain'] : 'Not Set'; ?>; Status: <?php echo (isset($pins['payment']) && (int)$pins['payment']['is_active'] === 1) ? 'Enabled' : 'Disabled'; ?></small>
-                </div>
-
-                <div class="form-group">
-                    <label for="secure_pass_pin">Secure Pass PIN</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="password" id="secure_pass_pin" name="secure_pass_pin" class="form-control" placeholder="<?php echo isset($pins['secure_pass']['pin_plain']) ? $pins['secure_pass']['pin_plain'] : 'Not Set'; ?>" maxlength="6" autocomplete="off">
-                        <button type="button" class="btn btn-secondary" onclick="generateRandom('secure_pass_pin')">Random</button>
-                    </div>
-                    <div class="form-check" style="margin-top: 0.5rem;">
-                        <input type="checkbox" id="secure_pass_active" name="secure_pass_active" class="form-check-input" <?php echo (isset($pins['secure_pass']) && (int)$pins['secure_pass']['is_active'] === 1) ? 'checked' : ''; ?>>
-                        <label for="secure_pass_active" class="form-check-label">Enabled</label>
-                    </div>
-                    <small class="text-muted">Leave blank to keep the current PIN. Current: <?php echo isset($pins['secure_pass']['pin_plain']) ? $pins['secure_pass']['pin_plain'] : 'Not Set'; ?>; Status: <?php echo (isset($pins['secure_pass']) && (int)$pins['secure_pass']['is_active'] === 1) ? 'Enabled' : 'Disabled'; ?></small>
-                </div>
-
-                <div class="form-group" style="margin-top: 2rem;">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <a href="user_pins.php" class="btn btn-outline" style="margin-left: 1rem;">Back to Users</a>
-                </div>
-            </form>
-        </div>
-    </div>
-</section>
-
-<script>
-// Generate a random 6-digit PIN and fill the specified input
-function generateRandom(id) {
-    const random = Math.floor(100000 + Math.random() * 900000).toString();
-    document.getElementById(id).value = random;
-}
-</script>
-
+    <form method="POST" style="display:flex;gap:.5rem;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>"><input type="hidden" name="user_id" value="<?php echo (int)$userId; ?>"><input type="hidden" name="action" value="reset"><input type="hidden" name="pin_type" value="<?php echo $t; ?>">
+      <input class="form-control" style="max-width:340px" type="text" name="reason" placeholder="Reset reason (required)" required>
+      <button class="btn btn-primary btn-sm" type="submit">Reset / Regenerate</button>
+    </form>
+  </div>
+<?php endforeach; ?>
+</div></div>
+</div></section>
 <?php require_once '../includes/footer.php'; ?>

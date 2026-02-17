@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS admin_logs;
 DROP TABLE IF EXISTS accounts;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS admins;
+DROP TABLE IF EXISTS kyc_logs;
 
 -- Users Table
 CREATE TABLE users (
@@ -26,7 +27,11 @@ CREATE TABLE users (
     ssn VARCHAR(4) NULL,
     date_of_birth DATE,
     account_type ENUM('personal','premium','student') DEFAULT 'personal',
-    kyc_status ENUM('pending', 'verified', 'rejected', 'suspended') DEFAULT 'pending',
+    kyc_status ENUM('none','pending', 'verified', 'rejected', 'suspended') DEFAULT 'none',
+    kyc_document VARCHAR(255) NULL,
+    kyc_reviewed_by INT NULL,
+    kyc_reviewed_at DATETIME NULL,
+    kyc_review_reason TEXT NULL,
     account_number VARCHAR(20) UNIQUE NOT NULL,
     account_balance DECIMAL(15, 2) DEFAULT 0.00,
     account_status ENUM('active', 'frozen', 'closed') DEFAULT 'active',
@@ -56,6 +61,8 @@ CREATE TABLE user_pins (
     pin_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     pin_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     last_used TIMESTAMP NULL,
+    transfer_pin_hash VARCHAR(255) NULL,
+    transfer_pin_created_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     UNIQUE KEY unique_pin_type (user_id, pin_type),
     INDEX idx_user_id (user_id)
@@ -151,6 +158,20 @@ CREATE TABLE audit_logs (
     INDEX idx_admin_id (admin_id),
     INDEX idx_timestamp (action_timestamp),
     INDEX idx_action_type (action_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+-- KYC Action Logs
+CREATE TABLE kyc_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    admin_id INT NULL,
+    action ENUM('upload', 'approve', 'reject', 'request_reupload') NOT NULL,
+    reason TEXT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_kyc_user (user_id),
+    INDEX idx_kyc_admin (admin_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Transaction Requests Table
